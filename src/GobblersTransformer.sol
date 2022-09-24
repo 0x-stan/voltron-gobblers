@@ -33,6 +33,7 @@ contract GobblersTransformer is Owned {
         uint64 lastTimestamp;
     }
     /// @notice Maps user addresses to their account data.
+
     mapping(address => UserData) public getUserData;
 
     /// @dev An enum for representing whether to
@@ -52,6 +53,7 @@ contract GobblersTransformer is Owned {
         // Timestamp of the last goo balance checkpoint.
         uint64 lastTimestamp;
     }
+
     GlobalData public globalData;
 
     // pool idx => gobblerId
@@ -59,15 +61,15 @@ contract GobblersTransformer is Owned {
         uint256 gobblerId;
         bool claimed;
     }
-    mapping(uint256 => PoolMintedGobbler) public poolMintedGobblers;
-    uint256 public poolMintedGobblersIdx;
-    uint256 public poolMintedToClaimNum;
+
+    mapping(uint256 => bool) public gobblersClaimed;
+    uint256[] public claimableGobblers;
 
     // Events
 
     event GooBalanceUpdated(address indexed user, uint256 newGooBalance);
-    event MintPoolGobblers(uint256 indexed num, uint256 indexed gobblerId);
-    event ClaimPoolGobblers(uint256[] indexed idxs);
+    event GobblerMinted(uint256 indexed num, uint256 indexed gobblerId);
+    event GobblersClaimed(uint256[] indexed gobblerIds);
 
     constructor(address admin_, address artGobblers_) Owned(admin_) {
         artGobblers = artGobblers_;
@@ -81,34 +83,28 @@ contract GobblersTransformer is Owned {
         uint256 id;
         address holder;
         uint32 emissionMultiple;
-        uint32 sumGobblersOwned;
         uint32 sumEmissionMultiple;
 
-        for (uint256 i = 0; i < gobblerIds.length; ++i) {
+        uint32 totalNumber = uint32(gobblerIds.length);
+        for (uint256 i = 0; i < totalNumber; ++i) {
             id = gobblerIds[i];
-            (holder, , emissionMultiple) = IArtGobblers(artGobblers)
-                .getGobblerData(id);
+            (holder,, emissionMultiple) = IArtGobblers(artGobblers).getGobblerData(id);
             require(holder == msg.sender, "WRONG_OWNER");
             require(emissionMultiple > 0, "GOBBLER_MUST_REVEALED");
 
-            sumGobblersOwned += 1;
             sumEmissionMultiple += emissionMultiple;
 
             getUserByGobblerId[id] = msg.sender;
 
-            IArtGobblers(artGobblers).transferFrom(
-                msg.sender,
-                address(this),
-                id
-            );
+            IArtGobblers(artGobblers).transferFrom(msg.sender, address(this), id);
         }
 
         // update user data
-        getUserData[msg.sender].gobblersOwned += sumGobblersOwned;
+        getUserData[msg.sender].gobblersOwned += totalNumber;
         getUserData[msg.sender].emissionMultiple += sumEmissionMultiple;
 
         // update global data
-        globalData.totalGobblersOwned += sumGobblersOwned;
+        globalData.totalGobblersOwned += totalNumber;
         globalData.totalEmissionMultiple += sumEmissionMultiple;
     }
 
@@ -117,89 +113,71 @@ contract GobblersTransformer is Owned {
         updateGlobalBalance();
         updateUserGooBalance(msg.sender, 0, GooBalanceUpdateType.DECREASE);
 
+        // TODO: claim gobblers before withdraw
+
         uint256 id;
         address holder;
         uint32 emissionMultiple;
-        uint32 sumGobblersOwned;
         uint32 sumEmissionMultiple;
 
-        for (uint256 i = 0; i < gobblerIds.length; ++i) {
+        uint32 totalNumber = uint32(gobblerIds.length);
+        for (uint256 i = 0; i < totalNumber; ++i) {
             id = gobblerIds[i];
-            (holder, , emissionMultiple) = IArtGobblers(artGobblers)
-                .getGobblerData(id);
+            (holder,, emissionMultiple) = IArtGobblers(artGobblers).getGobblerData(id);
             require(getUserByGobblerId[id] == msg.sender, "WRONG_OWNER");
 
-            sumGobblersOwned += 1;
             sumEmissionMultiple += emissionMultiple;
 
             delete getUserByGobblerId[id];
 
-            IArtGobblers(artGobblers).transferFrom(
-                address(this),
-                msg.sender,
-                id
-            );
+            IArtGobblers(artGobblers).transferFrom(address(this), msg.sender, id);
         }
 
         // update user data
-        getUserData[msg.sender].gobblersOwned -= sumGobblersOwned;
+        getUserData[msg.sender].gobblersOwned -= totalNumber;
         getUserData[msg.sender].emissionMultiple -= sumEmissionMultiple;
 
         // update global data
-        globalData.totalGobblersOwned -= sumGobblersOwned;
+        globalData.totalGobblersOwned -= totalNumber;
         globalData.totalEmissionMultiple -= sumEmissionMultiple;
     }
 
     function mintPoolGobblers(uint256 maxPrice, uint256 num) external {
-        uint256 gobblerId;
         for (uint256 i = 0; i < num; i++) {
-            gobblerId = IArtGobblers(artGobblers).mintFromGoo(maxPrice, true);
-            poolMintedGobblers[++poolMintedGobblersIdx].gobblerId = gobblerId;
+            uint256 gobblerId = IArtGobblers(artGobblers).mintFromGoo(maxPrice, true);
+            claimableGobblers.push(gobblerId);
+            emit GobblerMinted(num, gobblerId);
         }
-        poolMintedToClaimNum += num;
-        emit MintPoolGobblers(num, gobblerId);
     }
 
-    function claimPoolGobblers(uint256[] calldata idxs) external {
-        updateGlobalBalance();
-        updateUserGooBalance(msg.sender, 0, GooBalanceUpdateType.DECREASE);
+    function claimPoolGobblers(uint256[] calldata gobblerIds) external {
+        uint256 globalBalance = updateGlobalBalance();
+        uint256 userBalance = updateUserGooBalance(msg.sender, 0, GooBalanceUpdateType.DECREASE);
 
         // check virtual balance enough
 
         // (user's virtual goo / global virtual goo) * total cliamable num - claimed num
-        uint256 claimableNum = uint256(getUserData[msg.sender].virtualBalance)
-            .divWadDown(globalData.totalVirtualBalance)
-            .mulWadDown(poolMintedToClaimNum) -
-            uint256(getUserData[msg.sender].claimedNum);
+        uint256 claimableNum = uint256(getUserData[msg.sender].virtualBalance).divWadDown(globalBalance).mulWadDown(
+            userBalance
+        ) - uint256(getUserData[msg.sender].claimedNum);
 
-        uint256 claimNum = idxs.length;
+        uint256 claimNum = gobblerIds.length;
         require(claimableNum >= claimNum, "CLAIM_TOO_MORE");
 
         // claim gobblers
-        uint256 idx;
         for (uint256 i = 0; i < claimNum; i++) {
-            idx = idxs[i];
-
-            require(
-                poolMintedGobblers[idx].claimed == false,
-                "GOBBLER_CANT_CLAIM"
-            );
-
-            poolMintedGobblers[idx].claimed = true;
-            uint256 gobblerId = poolMintedGobblers[idx].gobblerId;
-            IArtGobblers(artGobblers).transferFrom(
-                address(this),
-                msg.sender,
-                gobblerId
-            );
+            uint256 id = gobblerIds[i];
+            require(!gobblersClaimed[id], "GOBBLER_ALREADY_CLAIMED");
+            IArtGobblers(artGobblers).transferFrom(address(this), msg.sender, id);
+            gobblersClaimed[id] = true;
         }
 
         getUserData[msg.sender].claimedNum += uint64(claimNum);
 
-        emit ClaimPoolGobblers(idxs);
+        emit GobblersClaimed(gobblerIds);
     }
 
-    function updateGlobalBalance() public {
+    function updateGlobalBalance() public returns (uint256) {
         uint256 updatedBalance = LibGOO.computeGOOBalance(
             globalData.totalEmissionMultiple,
             globalData.totalVirtualBalance,
@@ -208,28 +186,28 @@ contract GobblersTransformer is Owned {
         // update global balance
         globalData.totalVirtualBalance = uint128(updatedBalance);
         globalData.lastTimestamp = uint64(block.timestamp);
+        return updatedBalance;
     }
 
     /// @notice Update a user's virtual goo balance.
     /// @param user The user whose virtual goo balance we should update.
     /// @param gooAmount The amount of goo to update the user's virtual balance by.
     /// @param updateType Whether to increase or decrease the user's balance by gooAmount.
-    function updateUserGooBalance(
-        address user,
-        uint256 gooAmount,
-        GooBalanceUpdateType updateType
-    ) internal {
+    function updateUserGooBalance(address user, uint256 gooAmount, GooBalanceUpdateType updateType)
+        internal
+        returns (uint256)
+    {
         // Will revert due to underflow if we're decreasing by more than the user's current balance.
         // Don't need to do checked addition in the increase case, but we do it anyway for convenience.
-        uint256 updatedBalance = updateType == GooBalanceUpdateType.INCREASE
-            ? gooBalance(user) + gooAmount
-            : gooBalance(user) - gooAmount;
+        uint256 updatedBalance =
+            updateType == GooBalanceUpdateType.INCREASE ? gooBalance(user) + gooAmount : gooBalance(user) - gooAmount;
 
         // Snapshot the user's new goo balance with the current timestamp.
         getUserData[user].virtualBalance = uint128(updatedBalance);
         getUserData[user].lastTimestamp = uint64(block.timestamp);
 
         emit GooBalanceUpdated(user, updatedBalance);
+        return updatedBalance;
     }
 
     /// @notice Calculate a user's virtual goo balance.
@@ -240,7 +218,7 @@ contract GobblersTransformer is Owned {
         return LibGOO.computeGOOBalance(
             getUserData[user].emissionMultiple,
             getUserData[user].virtualBalance,
-            uint(toDaysWadUnsafe(block.timestamp - getUserData[user].lastTimestamp))
+            uint256(toDaysWadUnsafe(block.timestamp - getUserData[user].lastTimestamp))
         );
     }
 }
