@@ -91,13 +91,8 @@ abstract contract ArtGobblersDeployHelper is DSTestPlus {
         pages = new Pages(block.timestamp, goo, address(0xBEEF), gobblers, "");
     }
 
-   
-
     /// @notice Mint a number of gobblers to the given address
-    function mintGobblers(address addr, uint256 num)
-        internal
-        returns (uint256[] memory gobblerIds)
-    {
+    function mintGobblers(address addr, uint256 num) internal returns (uint256[] memory gobblerIds) {
         gobblerIds = new uint256[](num);
         for (uint256 i = 0; i < num; i++) {
             vm.startPrank(address(gobblers));
@@ -110,17 +105,11 @@ abstract contract ArtGobblersDeployHelper is DSTestPlus {
     }
 
     /// @notice Call back vrf with randomness and reveal gobblers.
-    function setRandomnessAndReveal(uint256 numReveal, string memory seed)
-        internal
-    {
+    function setRandomnessAndReveal(uint256 numReveal, string memory seed) internal {
         bytes32 requestId = gobblers.requestRandomSeed();
         uint256 randomness = uint256(keccak256(abi.encodePacked(seed)));
         // call back from coordinator
-        vrfCoordinator.callBackWithRandomness(
-            requestId,
-            randomness,
-            address(randProvider)
-        );
+        vrfCoordinator.callBackWithRandomness(requestId, randomness, address(randProvider));
         gobblers.revealGobblers(numReveal);
     }
 }
