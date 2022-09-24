@@ -36,9 +36,7 @@ contract GobblersTransformerTest is ArtGobblersDeployHelper {
         for (uint256 i = 0; i < gobblersNum; i++) {
             assertEq(gobblers.ownerOf(gobblerIds[i]), address(transformer));
             assertEq(transformer.getUserByGobblerId(gobblerIds[i]), users[0]);
-            (, , uint32 emissionMultiple) = gobblers.getGobblerData(
-                gobblerIds[i]
-            );
+            (,, uint32 emissionMultiple) = gobblers.getGobblerData(gobblerIds[i]);
             sumEmissionMultiple += emissionMultiple;
         }
 
@@ -46,12 +44,7 @@ contract GobblersTransformerTest is ArtGobblersDeployHelper {
         uint32 totalEmissionMultiple;
         uint128 totalVirtualBalance;
 
-        (
-            totalGobblersOwned,
-            totalEmissionMultiple,
-            totalVirtualBalance,
-
-        ) = transformer.globalData();
+        (totalGobblersOwned, totalEmissionMultiple, totalVirtualBalance,) = transformer.globalData();
         assertEq(totalGobblersOwned, gobblersNum);
         assertEq(totalEmissionMultiple, sumEmissionMultiple);
     }
@@ -81,13 +74,8 @@ contract GobblersTransformerTest is ArtGobblersDeployHelper {
 
         deposit(users[0], gobblerIds);
 
-        (
-            uint32 gobblersOwned,
-            uint32 emissionMultiple,
-            uint128 virtualBalance,
-            uint64 claimedNum,
-            uint64 lastTimestamp
-        ) = transformer.getUserData(users[0]);
+        (uint32 gobblersOwned, uint32 emissionMultiple, uint128 virtualBalance, uint64 claimedNum, uint64 lastTimestamp)
+        = transformer.getUserData(users[0]);
 
         assertEq(gobblersOwned, gobblersNum);
 
@@ -111,9 +99,7 @@ contract GobblersTransformerTest is ArtGobblersDeployHelper {
         transformer.mintPoolGobblers(type(uint256).max, 1);
 
         uint256 idx = transformer.poolMintedGobblersIdx();
-        (uint256 poolGobblerId, bool claimed) = transformer.poolMintedGobblers(
-            idx
-        );
+        (uint256 poolGobblerId, bool claimed) = transformer.poolMintedGobblers(idx);
 
         assertEq(transformer.poolMintedToClaimNum(), 1);
         assertEq(idx, 1);
@@ -172,7 +158,6 @@ contract GobblersTransformerTest is ArtGobblersDeployHelper {
         vm.prank(users[0]);
         vm.expectRevert("CLAIM_TOO_MORE");
         transformer.claimPoolGobblers(idxs);
-
     }
 
     /*//////////////////////////////////////////////////////////////
