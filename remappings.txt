@@ -1,4 +1,4 @@
-2022-09-artgobblers/=lib/2022-09-artgobblers/src/
+2022-09-artgobblers/=lib/2022-09-artgobblers/
 VRGDAs/=lib/2022-09-artgobblers/lib/VRGDAs/src/
 chainlink/=lib/2022-09-artgobblers/lib/chainlink/contracts/src/
 ds-test/=lib/2022-09-artgobblers/lib/ds-test/src/
