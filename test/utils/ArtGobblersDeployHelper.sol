@@ -94,7 +94,7 @@ abstract contract ArtGobblersDeployHelper is DSTestPlus {
    
 
     /// @notice Mint a number of gobblers to the given address
-    function mintGobblersFromGoo(address addr, uint256 num)
+    function mintGobblers(address addr, uint256 num)
         internal
         returns (uint256[] memory gobblerIds)
     {
