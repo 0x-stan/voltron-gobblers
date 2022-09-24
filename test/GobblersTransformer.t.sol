@@ -8,6 +8,8 @@ import {ArtGobblers, FixedPointMathLib} from "2022-09-artgobblers/src/ArtGobbler
 import {ArtGobblersDeployHelper} from "./utils/ArtGobblersDeployHelper.sol";
 
 contract GobblersTransformerTest is ArtGobblersDeployHelper {
+    using FixedPointMathLib for uint256;
+
     GobblersTransformer transformer;
 
     function setUp() public {
@@ -121,40 +123,66 @@ contract GobblersTransformerTest is ArtGobblersDeployHelper {
         assertEq(gobblers.ownerOf(poolGobblerId), address(transformer));
     }
 
-    function testClaimPoolGobblers() public {
-        uint256 gobblersNum = 10;
-        uint256[] memory gobblerIds0 = mintGobblers(users[0], gobblersNum);
-        uint256[] memory gobblerIds1 = mintGobblers(users[1], gobblersNum);
+    function testClaimPoolGobblersFuzz(
+        uint256 gobblersNum0,
+        uint256 gobblersNum1
+    ) public {
+        vm.assume(gobblersNum0 < 100 && gobblersNum0 > 10);
+        vm.assume(gobblersNum1 < 100 && gobblersNum0 > 10);
+
+        uint256[] memory gobblerIds0 = mintGobblers(users[0], gobblersNum0);
+        uint256[] memory gobblerIds1 = mintGobblers(users[1], gobblersNum1);
 
         vm.warp(block.timestamp + 1 days);
-        setRandomnessAndReveal(gobblersNum * 2, "seed");
+        setRandomnessAndReveal(gobblersNum0 + gobblersNum1, "seed");
+
 
         deposit(users[0], gobblerIds0);
         deposit(users[1], gobblerIds1);
 
-        console2.log(block.timestamp);
-
-        vm.warp(block.timestamp + 5 days);
+        vm.warp(block.timestamp + 10 days);
+        console2.log(transformer.gooBalance(users[0]));
+        console2.log(transformer.gooBalance(users[1]));
 
         transformer.mintPoolGobblers(type(uint256).max, 10);
+        
+        transformer.updateGlobalBalance();
+        
+        uint256 virtualBalance0 = transformer.gooBalance(users[0]);
+        uint256 virtualBalance1 = transformer.gooBalance(users[1]);
+        (,,uint128 virtualBalanceTotal,) = transformer.globalData();
+        console2.log(virtualBalance0);
+        console2.log(virtualBalance1);
+        console2.log(virtualBalanceTotal);
 
-        uint256 claimNum;
+        uint256 claimNum = virtualBalance0
+            .divWadDown(virtualBalanceTotal)
+            .mulWadDown(transformer.poolMintedToClaimNum());
+
         uint256 poolMintedGobblersIdx;
         uint256[] memory idxs;
 
+        poolMintedGobblersIdx = transformer.poolMintedGobblersIdx();
+
         uint256 snapshotId = vm.snapshot();
 
-        claimNum = 5;
-        poolMintedGobblersIdx = transformer.poolMintedGobblersIdx();
         idxs = new uint256[](claimNum);
         for (uint256 i = 0; i < claimNum; i++) {
             idxs[i] = poolMintedGobblersIdx - i;
         }
 
-        vm.prank(users[0]);
+        vm.startPrank(users[0]);
         transformer.claimPoolGobblers(idxs);
+        vm.stopPrank();
 
-        assertEq(transformer.poolMintedGobblersIdx(), poolMintedGobblersIdx - claimNum);
+        assertEq(
+            transformer.poolMintedGobblersIdx(),
+            poolMintedGobblersIdx - claimNum
+        );
+
+        (, , , uint64 claimedNum, ) = transformer.getUserData(users[0]);
+
+        assertEq(claimedNum, claimNum);
 
         for (uint256 i = 0; i < claimNum; i++) {
             assertEq(gobblers.ownerOf(idxs[i]), users[0]);
@@ -162,17 +190,16 @@ contract GobblersTransformerTest is ArtGobblersDeployHelper {
 
         vm.revertTo(snapshotId);
 
-        claimNum = 6;
-        poolMintedGobblersIdx = transformer.poolMintedGobblersIdx();
+        claimNum += 2;
         idxs = new uint256[](claimNum);
         for (uint256 i = 0; i < claimNum; i++) {
             idxs[i] = poolMintedGobblersIdx - i;
         }
 
-        vm.prank(users[0]);
+        vm.startPrank(users[0]);
         vm.expectRevert("CLAIM_TOO_MORE");
         transformer.claimPoolGobblers(idxs);
-
+        vm.stopPrank();
     }
 
     /*//////////////////////////////////////////////////////////////
