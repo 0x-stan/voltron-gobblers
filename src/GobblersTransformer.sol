@@ -67,6 +67,8 @@ contract GobblersTransformer is Owned {
 
     // Events
 
+    event GobblerDepsit(uint256[] indexed gobblerIds);
+    event GobblerWithdraw(uint256[] indexed gobblerIds);
     event GooBalanceUpdated(address indexed user, uint256 newGooBalance);
     event GobblerMinted(uint256 indexed num, uint256 indexed gobblerId);
     event GobblersClaimed(uint256[] indexed gobblerIds);
@@ -106,14 +108,14 @@ contract GobblersTransformer is Owned {
         // update global data
         globalData.totalGobblersOwned += totalNumber;
         globalData.totalEmissionMultiple += sumEmissionMultiple;
+
+        emit GobblerDepsit(gobblerIds);
     }
 
     function withdrawGobblers(uint256[] calldata gobblerIds) external {
         // update user virtual balance of GOO
         updateGlobalBalance();
         updateUserGooBalance(msg.sender, 0, GooBalanceUpdateType.DECREASE);
-
-        // TODO: claim gobblers before withdraw
 
         uint256 id;
         address holder;
@@ -140,6 +142,8 @@ contract GobblersTransformer is Owned {
         // update global data
         globalData.totalGobblersOwned -= totalNumber;
         globalData.totalEmissionMultiple -= sumEmissionMultiple;
+
+        emit GobblerWithdraw(gobblerIds);
     }
 
     function mintPoolGobblers(uint256 maxPrice, uint256 num) external {

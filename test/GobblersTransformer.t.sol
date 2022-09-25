@@ -137,44 +137,113 @@ contract GobblersTransformerTest is ArtGobblersDeployHelper {
         
         transformer.updateGlobalBalance();
         
-        uint256[] memory claimIds;
         uint256 virtualBalance0 = transformer.gooBalance(users[0]);
-        // uint256 virtualBalance1 = transformer.gooBalance(users[1]);
         (,,uint128 virtualBalanceTotal,) = transformer.globalData();
         uint256 claimNum = virtualBalance0
             .divWadDown(virtualBalanceTotal)
             .mulWadDown(totalMintNum);
+        uint256[] memory claimIds = new uint256[](claimNum);
 
         uint256 snapshotId = vm.snapshot();
 
-        claimIds = new uint256[](claimNum);
+        // shuold claimable
         for (uint256 i = 0; i < claimNum; i++) {
             claimIds[i] = transformer.claimableGobblers(i);
         }
-        
-        vm.prank(users[0]);
+        vm.startPrank(users[0]);
         transformer.claimPoolGobblers(claimIds);
-
         (, , , uint64 claimedNum, ) = transformer.getUserData(users[0]);
-
         assertEq(claimedNum, claimNum);
-
         for (uint256 i = 0; i < claimNum; i++) {
             assertEq(gobblers.ownerOf(claimIds[i]), users[0]);
         }
-
+        vm.stopPrank();
         vm.revertTo(snapshotId);
 
-        claimNum += 1;
-        claimIds = new uint256[](claimNum);
+        
+
+        // can't claim over max claimable number of user
+        uint256 claimNumOvered = claimNum + 1;
+        claimIds = new uint256[](claimNumOvered);
+        for (uint256 i = 0; i < claimNumOvered; i++) {
+            claimIds[i] = transformer.claimableGobblers(i);
+        }
+        vm.startPrank(users[0]);
+        vm.expectRevert("CLAIM_TOO_MORE");
+        transformer.claimPoolGobblers(claimIds);
+        vm.stopPrank();
+        vm.revertTo(snapshotId);
+
+    }
+
+    function testClaimPoolGobblersAfterWidraw() public {
+        uint256 gobblersNum0 = 50;
+        uint256 gobblersNum1 = 50;
+
+        uint256[] memory gobblerIds0 = mintGobblers(users[0], gobblersNum0);
+        uint256[] memory gobblerIds1 = mintGobblers(users[1], gobblersNum1);
+
+        vm.warp(block.timestamp + 1 days);
+        setRandomnessAndReveal(gobblersNum0 + gobblersNum1, "seed");
+
+        deposit(users[0], gobblerIds0);
+        deposit(users[1], gobblerIds1);
+
+        vm.warp(block.timestamp + 10 days);
+
+        // try to mint most pool gobblers
+        uint256 totalMintNum;
+        for (uint256 i = 0; ; i++) {
+            // transformer.mintPoolGobblers(type(uint256).max, 1);
+            try transformer.mintPoolGobblers(type(uint256).max, 1) {
+                totalMintNum++;
+            } catch {
+                break;
+            }
+        }
+        
+        transformer.updateGlobalBalance();
+        
+        uint256 virtualBalance0 = transformer.gooBalance(users[0]);
+        (,,uint128 virtualBalanceTotal,) = transformer.globalData();
+        uint256 claimNum = virtualBalance0
+            .divWadDown(virtualBalanceTotal)
+            .mulWadDown(totalMintNum);
+        uint256[] memory claimIds = new uint256[](claimNum);
+
+        uint256 snapshotId = vm.snapshot();
+
+        // should claimable after withdraw
         for (uint256 i = 0; i < claimNum; i++) {
             claimIds[i] = transformer.claimableGobblers(i);
         }
 
-        vm.prank(users[0]);
+        vm.startPrank(users[0]);
+        transformer.withdrawGobblers(gobblerIds0);
+        transformer.claimPoolGobblers(claimIds);
+        vm.stopPrank();
+        vm.revertTo(snapshotId);
+
+        // claimable number shuold decrease after time pasted
+        for (uint256 i = 0; i < claimNum; i++) {
+            claimIds[i] = transformer.claimableGobblers(i);
+        }
+        vm.startPrank(users[0]);
+        transformer.withdrawGobblers(gobblerIds0);
+        vm.warp(block.timestamp + 1 days);
         vm.expectRevert("CLAIM_TOO_MORE");
         transformer.claimPoolGobblers(claimIds);
+        
+        uint256[] memory newClaimIds = new uint256[](claimNum-5);
+        for (uint256 i = 0; i < claimNum-5; i++) {
+            newClaimIds[i] = transformer.claimableGobblers(i);
+        }
+        transformer.claimPoolGobblers(newClaimIds);
+        vm.stopPrank();
+        vm.revertTo(snapshotId);
     }
+
+
 
     /*//////////////////////////////////////////////////////////////
                               Helpers
