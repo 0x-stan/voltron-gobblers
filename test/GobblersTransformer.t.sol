@@ -96,25 +96,22 @@ contract GobblersTransformerTest is ArtGobblersDeployHelper {
 
         vm.warp(block.timestamp + 5 days);
 
-        assertEq(transformer.poolMintedToClaimNum(), 0);
 
         transformer.mintPoolGobblers(type(uint256).max, 1);
 
-        uint256 idx = transformer.poolMintedGobblersIdx();
-        (uint256 poolGobblerId, bool claimed) = transformer.poolMintedGobblers(idx);
+        uint256 poolGobblerId = transformer.claimableGobblers(0);
+        bool claimed = transformer.gobblersClaimed(0);
 
-        assertEq(transformer.poolMintedToClaimNum(), 1);
-        assertEq(idx, 1);
         assertFalse(claimed);
         assertEq(gobblers.ownerOf(poolGobblerId), address(transformer));
     }
 
-    function testClaimPoolGobblersFuzz(
-        uint256 gobblersNum0,
-        uint256 gobblersNum1
-    ) public {
-        vm.assume(gobblersNum0 < 100 && gobblersNum0 > 10);
-        vm.assume(gobblersNum1 < 100 && gobblersNum0 > 10);
+    function testClaimPoolGobblersFuzz(uint32 percent) public {
+        // the percent of users[0] deposit of total 100
+        uint256 percentOne = type(uint32).max / 100;
+        vm.assume(percent > percentOne && percent < percentOne * 99);
+        uint256 gobblersNum0 = uint256(percent).divWadDown(type(uint32).max).mulWadDown(100);
+        uint256 gobblersNum1 = 100 - gobblersNum0;
 
         uint256[] memory gobblerIds0 = mintGobblers(users[0], gobblersNum0);
         uint256[] memory gobblerIds1 = mintGobblers(users[1], gobblersNum1);
@@ -122,70 +119,61 @@ contract GobblersTransformerTest is ArtGobblersDeployHelper {
         vm.warp(block.timestamp + 1 days);
         setRandomnessAndReveal(gobblersNum0 + gobblersNum1, "seed");
 
-
         deposit(users[0], gobblerIds0);
         deposit(users[1], gobblerIds1);
 
         vm.warp(block.timestamp + 10 days);
-        console2.log(transformer.gooBalance(users[0]));
-        console2.log(transformer.gooBalance(users[1]));
 
-        transformer.mintPoolGobblers(type(uint256).max, 10);
+        // try to mint most pool gobblers
+        uint256 totalMintNum;
+        for (uint256 i = 0; ; i++) {
+            // transformer.mintPoolGobblers(type(uint256).max, 1);
+            try transformer.mintPoolGobblers(type(uint256).max, 1) {
+                totalMintNum++;
+            } catch {
+                break;
+            }
+        }
         
         transformer.updateGlobalBalance();
         
+        uint256[] memory claimIds;
         uint256 virtualBalance0 = transformer.gooBalance(users[0]);
-        uint256 virtualBalance1 = transformer.gooBalance(users[1]);
+        // uint256 virtualBalance1 = transformer.gooBalance(users[1]);
         (,,uint128 virtualBalanceTotal,) = transformer.globalData();
-        console2.log(virtualBalance0);
-        console2.log(virtualBalance1);
-        console2.log(virtualBalanceTotal);
-
         uint256 claimNum = virtualBalance0
             .divWadDown(virtualBalanceTotal)
-            .mulWadDown(transformer.poolMintedToClaimNum());
-
-        uint256 poolMintedGobblersIdx;
-        uint256[] memory idxs;
-
-        poolMintedGobblersIdx = transformer.poolMintedGobblersIdx();
+            .mulWadDown(totalMintNum);
 
         uint256 snapshotId = vm.snapshot();
 
-        idxs = new uint256[](claimNum);
+        claimIds = new uint256[](claimNum);
         for (uint256 i = 0; i < claimNum; i++) {
-            idxs[i] = poolMintedGobblersIdx - i;
+            claimIds[i] = transformer.claimableGobblers(i);
         }
-
-        vm.startPrank(users[0]);
-        transformer.claimPoolGobblers(idxs);
-        vm.stopPrank();
-
-        assertEq(
-            transformer.poolMintedGobblersIdx(),
-            poolMintedGobblersIdx - claimNum
-        );
+        
+        vm.prank(users[0]);
+        transformer.claimPoolGobblers(claimIds);
 
         (, , , uint64 claimedNum, ) = transformer.getUserData(users[0]);
 
         assertEq(claimedNum, claimNum);
 
         for (uint256 i = 0; i < claimNum; i++) {
-            assertEq(gobblers.ownerOf(idxs[i]), users[0]);
+            assertEq(gobblers.ownerOf(claimIds[i]), users[0]);
         }
 
         vm.revertTo(snapshotId);
 
-        claimNum += 2;
-        idxs = new uint256[](claimNum);
+        claimNum += 1;
+        claimIds = new uint256[](claimNum);
         for (uint256 i = 0; i < claimNum; i++) {
-            idxs[i] = poolMintedGobblersIdx - i;
+            claimIds[i] = transformer.claimableGobblers(i);
         }
 
-        vm.startPrank(users[0]);
+        vm.prank(users[0]);
         vm.expectRevert("CLAIM_TOO_MORE");
-        transformer.claimPoolGobblers(idxs);
-        vm.stopPrank();
+        transformer.claimPoolGobblers(claimIds);
     }
 
     /*//////////////////////////////////////////////////////////////

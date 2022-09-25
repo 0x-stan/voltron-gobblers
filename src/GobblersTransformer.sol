@@ -152,13 +152,13 @@ contract GobblersTransformer is Owned {
 
     function claimPoolGobblers(uint256[] calldata gobblerIds) external {
         uint256 globalBalance = updateGlobalBalance();
-        uint256 userBalance = updateUserGooBalance(msg.sender, 0, GooBalanceUpdateType.DECREASE);
+        updateUserGooBalance(msg.sender, 0, GooBalanceUpdateType.DECREASE);
 
         // check virtual balance enough
 
         // (user's virtual goo / global virtual goo) * total cliamable num - claimed num
         uint256 claimableNum = uint256(getUserData[msg.sender].virtualBalance).divWadDown(globalBalance).mulWadDown(
-            userBalance
+            claimableGobblers.length
         ) - uint256(getUserData[msg.sender].claimedNum);
 
         uint256 claimNum = gobblerIds.length;
