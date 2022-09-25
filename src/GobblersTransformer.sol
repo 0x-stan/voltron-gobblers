@@ -3,6 +3,7 @@ pragma solidity >=0.8.0;
 
 import {Owned} from "solmate/auth/Owned.sol";
 import {IArtGobblers} from "src/utils/IArtGobblers.sol";
+import {IGOO} from "src/utils/IGOO.sol";
 import {FixedPointMathLib} from "solmate/utils/FixedPointMathLib.sol";
 import {toWadUnsafe, toDaysWadUnsafe} from "solmate/utils/SignedWadMath.sol";
 import {LibGOO} from "goo-issuance/LibGOO.sol";
@@ -15,6 +16,11 @@ contract GobblersTransformer is Owned {
     //////////////////////////////////////////////////////////////*/
 
     address public immutable artGobblers;
+    address public immutable goo;
+
+    /*//////////////////////////////////////////////////////////////
+                                USER DATA
+    //////////////////////////////////////////////////////////////*/
 
     // gobblerId => user
     mapping(uint256 => address) public getUserByGobblerId;
@@ -36,6 +42,10 @@ contract GobblersTransformer is Owned {
 
     mapping(address => UserData) public getUserData;
 
+    /*//////////////////////////////////////////////////////////////
+                                POOL DATA
+    //////////////////////////////////////////////////////////////*/
+
     /// @dev An enum for representing whether to
     /// increase or decrease a user's goo balance.
     enum GooBalanceUpdateType {
@@ -56,25 +66,59 @@ contract GobblersTransformer is Owned {
 
     GlobalData public globalData;
 
-    // pool idx => gobblerId
-    struct PoolMintedGobbler {
-        uint256 gobblerId;
-        bool claimed;
-    }
-
     mapping(uint256 => bool) public gobblersClaimed;
     uint256[] public claimableGobblers;
+    uint256 public claimableGobblersNum;
+    
+    // only use when stop mint gobblers and could claim goo in pool
+    struct PoolGooData {
+        uint128 claimableGoo;
+        uint64 lastTimestamp;
+    }
+    PoolGooData poolGooData;
 
-    // Events
+
+    /*//////////////////////////////////////////////////////////////
+                                admin
+    //////////////////////////////////////////////////////////////*/
+
+    bool mintLock;
+    bool claimGobblerLock;
+    bool claimGooLock = true;
+
+    /*//////////////////////////////////////////////////////////////
+                                EVENTS
+    //////////////////////////////////////////////////////////////*/
 
     event GobblerDepsit(uint256[] indexed gobblerIds);
     event GobblerWithdraw(uint256[] indexed gobblerIds);
     event GooBalanceUpdated(address indexed user, uint256 newGooBalance);
     event GobblerMinted(uint256 indexed num, uint256 indexed gobblerId);
     event GobblersClaimed(uint256[] indexed gobblerIds);
+    event ClaimPoolGoo(address indexed to, uint256 indexed amount);
 
-    constructor(address admin_, address artGobblers_) Owned(admin_) {
+    /*//////////////////////////////////////////////////////////////
+                                MODIFIER
+    //////////////////////////////////////////////////////////////*/
+
+    modifier canMint() {
+        require(!mintLock, "MINT_LOCK");
+        _;
+    }
+
+    modifier canClaimGobbler() {
+        require(!claimGobblerLock, "CLAIM_GOBBLER_LOCK");
+        _;
+    }
+
+    modifier canClaimGoo() {
+        require(!claimGooLock, "CLAIM_GOO_LOCK");
+        _;
+    }
+
+    constructor(address admin_, address artGobblers_, address goo_) Owned(admin_) {
         artGobblers = artGobblers_;
+        goo = goo_;
     }
 
     function depositGobblers(uint256[] calldata gobblerIds) external {
@@ -146,22 +190,23 @@ contract GobblersTransformer is Owned {
         emit GobblerWithdraw(gobblerIds);
     }
 
-    function mintPoolGobblers(uint256 maxPrice, uint256 num) external {
+    function mintPoolGobblers(uint256 maxPrice, uint256 num) external canMint {
         for (uint256 i = 0; i < num; i++) {
             uint256 gobblerId = IArtGobblers(artGobblers).mintFromGoo(maxPrice, true);
             claimableGobblers.push(gobblerId);
             emit GobblerMinted(num, gobblerId);
         }
+        claimableGobblersNum += num;
     }
 
-    function claimPoolGobblers(uint256[] calldata gobblerIds) external {
+    function claimPoolGobblers(uint256[] calldata gobblerIds) external canClaimGobbler {
         uint256 globalBalance = updateGlobalBalance();
-        updateUserGooBalance(msg.sender, 0, GooBalanceUpdateType.DECREASE);
+        uint256 userVirtualBalance = updateUserGooBalance(msg.sender, 0, GooBalanceUpdateType.DECREASE);
 
         // check virtual balance enough
 
         // (user's virtual goo / global virtual goo) * total cliamable num - claimed num
-        uint256 claimableNum = uint256(getUserData[msg.sender].virtualBalance).divWadDown(globalBalance).mulWadDown(
+        uint256 claimableNum = userVirtualBalance.divWadDown(globalBalance).mulWadDown(
             claimableGobblers.length
         ) - uint256(getUserData[msg.sender].claimedNum);
 
@@ -174,11 +219,44 @@ contract GobblersTransformer is Owned {
             require(!gobblersClaimed[id], "GOBBLER_ALREADY_CLAIMED");
             IArtGobblers(artGobblers).transferFrom(address(this), msg.sender, id);
             gobblersClaimed[id] = true;
+            
         }
 
         getUserData[msg.sender].claimedNum += uint64(claimNum);
+        claimableGobblersNum -= claimNum;
+
 
         emit GobblersClaimed(gobblerIds);
+    }
+
+    function claimPoolGoo() external canClaimGoo {
+        // require all pool gobblers have been claimed
+        require(mintLock, "SHOULD_STOP_MINT");
+        require(claimableGobblersNum == 0, "SHOULD_CLAIM_GOBBLER");
+
+        uint128 claimableGoo = poolGooData.claimableGoo;
+
+        if (uint256(poolGooData.lastTimestamp) < block.timestamp ) {
+            claimableGoo = uint128(IArtGobblers(artGobblers).gooBalance(address(this)));
+            IArtGobblers(artGobblers).removeGoo(claimableGoo);
+            poolGooData.claimableGoo = claimableGoo;
+            poolGooData.lastTimestamp = uint64(block.timestamp);
+        }
+
+        uint256 globalBalance = updateGlobalBalance();
+        uint256 updatedVirtualBalance = updateUserGooBalance(msg.sender, 0, GooBalanceUpdateType.DECREASE);
+
+        // check virtual balance enough
+
+        // (user's virtual goo / global virtual goo) * total cliamable goo
+        uint256 amount = updatedVirtualBalance.divWadDown(globalBalance).mulWadDown(
+            claimableGoo
+        );
+
+        IGOO(goo).transfer(msg.sender, amount);
+
+        emit ClaimPoolGoo(msg.sender, amount);
+
     }
 
     function updateGlobalBalance() public returns (uint256) {
@@ -224,5 +302,17 @@ contract GobblersTransformer is Owned {
             getUserData[user].virtualBalance,
             uint256(toDaysWadUnsafe(block.timestamp - getUserData[user].lastTimestamp))
         );
+    }
+
+    function setMintLock(bool isLock) external onlyOwner {
+        mintLock = isLock;
+    }
+
+    function setClaimGobblerLock(bool isLock) external onlyOwner {
+        claimGobblerLock = isLock;
+    }
+
+    function setClaimGooLock(bool isLock) external onlyOwner {
+        claimGooLock = isLock;
     }
 }

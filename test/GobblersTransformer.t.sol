@@ -15,7 +15,7 @@ contract GobblersTransformerTest is ArtGobblersDeployHelper {
     function setUp() public {
         deployArtGobblers();
         vm.warp(block.timestamp + 1 days);
-        transformer = new GobblersTransformer(msg.sender, address(gobblers));
+        transformer = new GobblersTransformer(msg.sender, address(gobblers), address(goo));
     }
 
     function testArtGobblersAddr() public {
@@ -66,25 +66,6 @@ contract GobblersTransformerTest is ArtGobblersDeployHelper {
             assertEq(gobblers.ownerOf(gobblerIds[i]), users[0]);
             assertEq(transformer.getUserByGobblerId(gobblerIds[i]), address(0));
         }
-    }
-
-    function testStaking() public {
-        uint256 gobblersNum = 1;
-        uint256[] memory gobblerIds = mintGobblers(users[0], gobblersNum);
-        vm.warp(block.timestamp + 1 days);
-        setRandomnessAndReveal(gobblersNum, "seed");
-
-        deposit(users[0], gobblerIds);
-
-        (uint32 gobblersOwned, uint32 emissionMultiple, uint128 virtualBalance, uint64 claimedNum, uint64 lastTimestamp)
-        = transformer.getUserData(users[0]);
-
-        assertEq(gobblersOwned, gobblersNum);
-
-        vm.warp(block.timestamp + 1 days);
-
-        // console2.log(emissionMultiple);
-        // console2.log(gobblers.gooBalance(address(transformer)));
     }
 
     function testMintPoolGobblers() public {
@@ -241,6 +222,68 @@ contract GobblersTransformerTest is ArtGobblersDeployHelper {
         transformer.claimPoolGobblers(newClaimIds);
         vm.stopPrank();
         vm.revertTo(snapshotId);
+    }
+
+    function testClaimPoolGoo() public {
+        uint256 gobblersNum0 = 5;
+        uint256 gobblersNum1 = 5;
+
+        uint256[] memory gobblerIds0 = mintGobblers(users[0], gobblersNum0);
+        uint256[] memory gobblerIds1 = mintGobblers(users[1], gobblersNum1);
+
+        vm.warp(block.timestamp + 1 days);
+        setRandomnessAndReveal(gobblersNum0 + gobblersNum1, "seed");
+
+        deposit(users[0], gobblerIds0);
+        deposit(users[1], gobblerIds1);
+
+        vm.warp(block.timestamp + 10 days);
+
+        transformer.mintPoolGobblers(type(uint256).max, 2);
+        
+        transformer.updateGlobalBalance();
+
+        uint256[] memory claimIds = new uint256[](1);
+
+        vm.startPrank(users[0]);
+        transformer.withdrawGobblers(gobblerIds0);
+        claimIds[0] = transformer.claimableGobblers(0);
+        transformer.claimPoolGobblers(claimIds);
+        vm.stopPrank();
+
+        // just in case round down cause "CLAIM_TOO_MORE"
+        vm.warp(block.timestamp + 1 days);
+
+        vm.startPrank(users[1]);
+        transformer.withdrawGobblers(gobblerIds1);
+        claimIds[0] = transformer.claimableGobblers(1);
+        transformer.claimPoolGobblers(claimIds);
+        vm.stopPrank();
+        
+        
+        vm.startPrank(transformer.owner());
+        transformer.setMintLock(true);
+        transformer.setClaimGooLock(false);
+        vm.stopPrank();
+
+        uint256 transformerGoo = gobblers.gooBalance(address(transformer));
+
+        vm.startPrank(users[0]);
+        uint256 claimGoo0 = goo.balanceOf(users[0]);
+        transformer.claimPoolGoo();
+        claimGoo0 = goo.balanceOf(users[0]) - claimGoo0;
+        vm.stopPrank();
+
+        vm.startPrank(users[1]);
+        uint256 claimGoo1 = goo.balanceOf(users[1]);
+        transformer.claimPoolGoo();
+        claimGoo1 = goo.balanceOf(users[1]) - claimGoo1;
+        vm.stopPrank();
+
+        uint256 sumClaimGoo = claimGoo0 + claimGoo1;
+        uint256 lastGoo = (transformerGoo - sumClaimGoo).divWadDown(sumClaimGoo);
+        assertTrue(lastGoo < 5e16);
+
     }
 
 
