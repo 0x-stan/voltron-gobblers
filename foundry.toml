@@ -3,4 +3,10 @@ src = 'src'
 out = 'out'
 libs = ['lib']
 
+
+[fmt]
+line_length = 140
+tab_width = 4
+bracket_spacing = true
+
 # See more config options https://github.com/foundry-rs/foundry/tree/master/config`

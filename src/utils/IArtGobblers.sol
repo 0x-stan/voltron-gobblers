@@ -51,13 +51,7 @@ interface IArtGobblers {
     function gobblerRevealsData()
         external
         view
-        returns (
-            uint64 randomSeed,
-            uint64 nextRevealTimestamp,
-            uint56 lastRevealedId,
-            uint56 toBeRevealed,
-            bool waitingForSeed
-        );
+        returns (uint64 randomSeed, uint64 nextRevealTimestamp, uint56 lastRevealedId, uint56 toBeRevealed, bool waitingForSeed);
     function goo() external view returns (address);
     function gooBalance(address user) external view returns (uint256);
     function hasClaimedMintlistGobbler(address) external view returns (bool);
@@ -74,9 +68,7 @@ interface IArtGobblers {
     function name() external view returns (string memory);
     function numMintedForReserves() external view returns (uint256);
     function numMintedFromGoo() external view returns (uint128);
-    function onERC1155BatchReceived(address, address, uint256[] memory, uint256[] memory, bytes memory)
-        external
-        returns (bytes4);
+    function onERC1155BatchReceived(address, address, uint256[] memory, uint256[] memory, bytes memory) external returns (bytes4);
     function onERC1155Received(address, address, uint256, uint256, bytes memory) external returns (bytes4);
     function owner() external view returns (address);
     function ownerOf(uint256 id) external view returns (address owner);
