@@ -15,7 +15,7 @@ According to the rules of Gobblers, on the 1st day 2,000 whitelisted users will 
 
 ![weight-comparison.png](./analysis/gobblers-price.png)
 
-As shown in the figure above, if there are holders with different weights, on the 10th day, the total difference ratio among Goo holders  reach about 50% between weight-9 & weight-6 holders, **Gobblers holders with weights 6,7,8 cannot afford new Gobblers even long after minting has started..**
+As shown in the figure above, if there are holders with different weights, on the 10th day, the total difference ratio among Goo holders  reach about 50% between weight-9 & weight-6 holders, **Gobblers holders with weights 6,7,8 cannot afford new Gobblers even long after minting has started..** (See [GobblersSimulation.ipynb](./analysis/GobblersSimulation.ipynb) for more details).
 
 The blue line in the above chart is the simulated price of Gobblers. For the first 3.2 days, no one can afford buying Gobblers with Goo, so the price will drop rapidly from the starting price, and holders of weight-9 can afford it and start generating the first price of Gobblers buying. After the first trade, the price will rise and then fall again according to [VRGDAs](https://www.paradigm.xyz/2022/08/vrgda), the second weight-9 holder will mint the second gobblers, then the third, then the fourth...  
 
