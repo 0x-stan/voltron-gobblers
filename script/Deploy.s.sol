@@ -9,7 +9,7 @@ import { VoltronGobblers } from "../src/VoltronGobblers.sol";
 contract DeployScript is MockArtGobblersDeployHelper {
     VoltronGobblers voltron;
 
-    function setUp() override public {
+    function setUp() public override {
         super.setUp();
     }
 

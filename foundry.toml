@@ -3,7 +3,7 @@ src = 'src'
 out = 'out'
 libs = ['lib']
 fs_permissions = [{ access = "read-write", path = "./"}]
-
+ffi = true
 
 [fmt]
 line_length = 140

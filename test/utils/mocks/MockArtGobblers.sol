@@ -62,19 +62,22 @@ contract MockArtGobblers is ArtGobblers {
     }
 
     /// @notice Mint a gobbler by owner.
-    /// @return gobblerId The id of the gobbler that was minted.
-    function mintByOwner() external returns (uint256 gobblerId) {
-        // require(msg.sender == owner, "UNAUTHORIZED");
+    /// @return gobblerIds The ids of the gobblers that was minted.
+    function mintByOwner(uint256 mintNum) external onlyOwner returns (uint256[] memory gobblerIds) {
+        gobblerIds = new uint256[](mintNum);
+        for (uint256 i = 0; i < mintNum; i++) {
+            uint256 currentPrice = gobblerPrice();
+            uint256 _gobblerId;
 
-        uint256 currentPrice = gobblerPrice();
+            unchecked {
+                ++numMintedFromGoo; // Overflow should be impossible due to the supply cap.
 
-        unchecked {
-            ++numMintedFromGoo; // Overflow should be impossible due to the supply cap.
+                emit GobblerPurchased(msg.sender, _gobblerId = ++currentNonLegendaryId, currentPrice);
+            }
 
-            emit GobblerPurchased(msg.sender, gobblerId = ++currentNonLegendaryId, currentPrice);
+            _mint(msg.sender, _gobblerId);
+            gobblerIds[ i] = _gobblerId;
         }
-
-        _mint(msg.sender, gobblerId);
     }
 
     /// @notice mock function: requestRandomSeed + revealGobblers.

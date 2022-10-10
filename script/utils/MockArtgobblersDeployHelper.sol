@@ -51,7 +51,7 @@ abstract contract MockArtGobblersDeployHelper is Script {
                                   SETUP
     //////////////////////////////////////////////////////////////*/
 
-    function setUp() virtual public {
+    function setUp() public virtual {
         teamColdWallet = tx.origin;
     }
 
