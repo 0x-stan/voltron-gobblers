@@ -59,8 +59,6 @@ abstract contract MockArtGobblersDeployHelper is Script {
         uint256 mintStart = block.timestamp - 1 days;
         linkToken = new LinkToken();
         vrfCoordinator = new VRFCoordinatorMock(address(linkToken));
-        // need link token to reqeustRandomSeed
-        linkToken.transfer(address(vrfCoordinator), 10000e18);
 
         // Precomputed contract addresses, based on contract deploy nonces.
         // tx.origin is the address who will actually broadcast the contract creations below.
@@ -97,6 +95,9 @@ abstract contract MockArtGobblersDeployHelper is Script {
         );
 
         pages = new Pages(mintStart, goo, teamColdWallet, gobblers, pagesBaseUri);
+
+        // need link token to reqeustRandomSeed
+        linkToken.transfer(address(randProvider), 10000e18);
     }
 
     /// @notice Call back vrf with randomness and reveal gobblers.

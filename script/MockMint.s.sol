@@ -32,16 +32,26 @@ contract MintScript is Script {
         uint256[] memory ids = gobblers.mintByOwner(mintNum);
         string memory idsStr = "mint gobblers id: ";
         for (uint256 i = 0; i < ids.length; i++) {
-            idsStr = string.concat(idsStr, vm.toString(ids[i]), ", ");
+            idsStr = string.concat(idsStr, vm.toString(ids[ i]), ", ");
         }
         console.log(idsStr);
 
-        // bytes32[] memory proof;
-        // gobblers.claimGobbler(proof);
+        // claim gobbler onece
+        if (!gobblers.hasClaimedMintlistGobbler(msg.sender)) {
+            bytes32[] memory proof;
+            gobblers.claimGobbler(proof);
+            mintNum++;
+        }
 
-        // revealGobblers(mintNum+1);
-        revealGobblersMock(mintNum);
-        
+        // check if can reveal gobblers by chainlink
+        // else use mock reveal function
+        (, uint64 nextRevealTimestamp,, uint56 toBeRevealed, bool waitingForSeed) = gobblers.gobblerRevealsData();
+        if (block.timestamp >= nextRevealTimestamp && !waitingForSeed) {
+            revealGobblers(toBeRevealed);
+        } else {
+            revealGobblersMock(mintNum);
+        }
+
         // mintLegendaryGobbler();
 
         vm.stopBroadcast();
@@ -73,13 +83,12 @@ contract MintScript is Script {
 
     function loadDeployAddress(string memory key) internal returns (address addr) {
         string[] memory cmds = new string[](4);
-        cmds[0] = "jq";
-        cmds[1] = key;
-        cmds[2] = "./deployment.json";
-        cmds[3] = "-r";
+        cmds[ 0] = "jq";
+        cmds[ 1] = key;
+        cmds[ 2] = "./deployment.json";
+        cmds[ 3] = "-r";
         bytes memory result = vm.ffi(cmds);
         addr = address(bytes20(result));
         console.log("loadDeployAddress", key, addr);
     }
-
 }
