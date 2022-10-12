@@ -5,3 +5,4 @@ ds-test/=lib/2022-09-artgobblers/lib/ds-test/src/
 forge-std/=lib/forge-std/src/
 goo-issuance/=lib/2022-09-artgobblers/lib/goo-issuance/src/
 solmate/=lib/solmate/src/
+murky/=lib/murky/src/

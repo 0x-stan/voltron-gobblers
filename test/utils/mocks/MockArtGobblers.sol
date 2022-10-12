@@ -40,15 +40,13 @@ contract MockArtGobblers is ArtGobblers {
         // URIs:
         string memory _baseUri,
         string memory _unrevealedUri
-    )
-        ArtGobblers(_merkleRoot, _mintStart, _goo, _pages, _team, _community, _randProvider, _baseUri, _unrevealedUri)
-    { }
+    ) ArtGobblers(_merkleRoot, _mintStart, _goo, _pages, _team, _community, _randProvider, _baseUri, _unrevealedUri) { }
 
     /// @notice Mint a gobbler from faucet.
     /// @return gobblerId The id of the gobbler that was minted.
     function mintFromFaucet() external returns (uint256 gobblerId) {
-        require(!faucetClaimed[ msg.sender], "Already claimed from faucet");
-        faucetClaimed[ msg.sender] = true;
+        require(!faucetClaimed[msg.sender], "Already claimed from faucet");
+        faucetClaimed[msg.sender] = true;
 
         uint256 currentPrice = gobblerPrice();
 
@@ -76,7 +74,7 @@ contract MockArtGobblers is ArtGobblers {
             }
 
             _mint(msg.sender, _gobblerId);
-            gobblerIds[ i] = _gobblerId;
+            gobblerIds[i] = _gobblerId;
         }
     }
 
@@ -146,19 +144,17 @@ contract MockArtGobblers is ArtGobblers {
                 //////////////////////////////////////////////////////////////*/
 
                 // Get the index of the swap id.
-                uint64 swapIndex =
-                    getGobblerData[ swapId].idx == 0
+                uint64 swapIndex = getGobblerData[swapId].idx == 0
                     ? uint64(swapId) // Hasn't been shuffled before.
-                    : getGobblerData[ swapId].idx; // Shuffled before.
+                    : getGobblerData[swapId].idx; // Shuffled before.
 
                 // Get the owner of the current id.
-                address currentIdOwner = getGobblerData[ currentId].owner;
+                address currentIdOwner = getGobblerData[currentId].owner;
 
                 // Get the index of the current id.
-                uint64 currentIndex =
-                    getGobblerData[ currentId].idx == 0
+                uint64 currentIndex = getGobblerData[currentId].idx == 0
                     ? uint64(currentId) // Hasn't been shuffled before.
-                    : getGobblerData[ currentId].idx; // Shuffled before.
+                    : getGobblerData[currentId].idx; // Shuffled before.
 
                 /*//////////////////////////////////////////////////////////////
                                   SWAP INDICES AND SET MULTIPLE
@@ -178,20 +174,20 @@ contract MockArtGobblers is ArtGobblers {
                 }
 
                 // Swap the index and multiple of the current id.
-                getGobblerData[ currentId].idx = swapIndex;
-                getGobblerData[ currentId].emissionMultiple = uint32(newCurrentIdMultiple);
+                getGobblerData[currentId].idx = swapIndex;
+                getGobblerData[currentId].emissionMultiple = uint32(newCurrentIdMultiple);
 
                 // Swap the index of the swap id.
-                getGobblerData[ swapId].idx = currentIndex;
+                getGobblerData[swapId].idx = currentIndex;
 
                 /*//////////////////////////////////////////////////////////////
                                    UPDATE CURRENT ID MULTIPLE
                 //////////////////////////////////////////////////////////////*/
 
                 // Update the user data for the owner of the current id.
-                getUserData[ currentIdOwner].lastBalance = uint128(gooBalance(currentIdOwner));
-                getUserData[ currentIdOwner].lastTimestamp = uint64(block.timestamp);
-                getUserData[ currentIdOwner].emissionMultiple += uint32(newCurrentIdMultiple);
+                getUserData[currentIdOwner].lastBalance = uint128(gooBalance(currentIdOwner));
+                getUserData[currentIdOwner].lastTimestamp = uint64(block.timestamp);
+                getUserData[currentIdOwner].emissionMultiple += uint32(newCurrentIdMultiple);
 
                 // Update the random seed to choose a new distance for the next iteration.
                 // It is critical that we cast to uint64 here, as otherwise the random seed

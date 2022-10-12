@@ -21,6 +21,7 @@ import { fromDaysWadUnsafe } from "solmate/utils/SignedWadMath.sol";
 
 import { MockArtGobblers } from "../../test/utils/mocks/MockArtGobblers.sol";
 import { LibRLP } from "2022-09-artgobblers/test/utils/LibRLP.sol";
+import { ProofHelper } from "./ProofHelper.sol";
 
 /// @notice Unit test for Art Gobbler Contract.
 abstract contract MockArtGobblersDeployHelper is Script {
@@ -34,8 +35,8 @@ abstract contract MockArtGobblersDeployHelper is Script {
     GobblerReserve internal team;
     GobblerReserve internal community;
     RandProvider internal randProvider;
-    address internal teamColdWallet;
 
+    address internal teamColdWallet;
     // Chainlink hash:
     bytes32 private keyHash = keccak256(abi.encode("GobblersChainlinkHash"));
     // Chainlink fee:
@@ -83,7 +84,7 @@ abstract contract MockArtGobblersDeployHelper is Script {
         );
 
         gobblers = new MockArtGobblers(
-            keccak256(abi.encodePacked(teamColdWallet)),
+            ProofHelper.readRoot(),
             mintStart,
             goo,
             Pages(pagesAddress),

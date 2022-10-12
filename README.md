@@ -48,6 +48,34 @@ test
 forge test
 ```
 
+## Deploy and Mock Test
+
+Use [mock ArtGobblers](./test/utils/mocks/MockArtGobblers.sol) for test.
+
+1. generate whitelist wallet addresses and merkle proof
+
+   ```bash
+   script/bash/1-generateWhitelist.sh
+   ```
+
+2. deploy mock ArtGobblers and VoltronGobblers
+
+   ```bash
+   script/bash/2-deployAndClaim.sh
+   ```
+
+3. batch mint mock gobblers
+
+   ```bash
+   script/bash/3-batchMockMint.sh
+   ```
+
+4. reveals gobblers
+
+   ```bash
+   script/bash/4-revealsGobblers.sh
+   ```
+
 ## VRGDAs 3D animation
 
 [![Watch the video](./analysis/VRGDA-200-15days.png)](https://www.youtube.com/watch?v=3wM2KcMUtE0)

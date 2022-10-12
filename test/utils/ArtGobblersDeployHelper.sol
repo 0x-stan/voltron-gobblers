@@ -100,7 +100,7 @@ abstract contract ArtGobblersDeployHelper is DSTestPlus {
             vm.stopPrank();
 
             vm.prank(addr);
-            gobblerIds[ i] = gobblers.mintFromGoo(type(uint256).max, false);
+            gobblerIds[i] = gobblers.mintFromGoo(type(uint256).max, false);
         }
     }
 

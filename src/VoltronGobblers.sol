@@ -96,7 +96,7 @@ contract VoltronGobblers is Owned {
 
     /// @notice Struct holding data relevant to each user's account.
     struct UserData {
-    // The total number of gobblers currently owned by the user.
+        // The total number of gobblers currently owned by the user.
         uint32 gobblersOwned;
         // The sum of the multiples of all gobblers the user holds.
         uint32 emissionMultiple;
@@ -123,7 +123,7 @@ contract VoltronGobblers is Owned {
     }
 
     struct GlobalData {
-    // The total number of gobblers currently owned by the user.
+        // The total number of gobblers currently owned by the user.
         uint32 totalGobblersOwned;
         // The sum of the multiples of all gobblers the user holds.
         uint32 totalEmissionMultiple;
@@ -202,21 +202,21 @@ contract VoltronGobblers is Owned {
 
         uint32 totalNumber = uint32(gobblerIds.length);
         for (uint256 i = 0; i < totalNumber; ++i) {
-            id = gobblerIds[ i];
+            id = gobblerIds[i];
             (holder,, emissionMultiple) = IArtGobblers(artGobblers).getGobblerData(id);
             require(holder == msg.sender, "WRONG_OWNER");
             require(emissionMultiple > 0, "GOBBLER_MUST_REVEALED");
 
             sumEmissionMultiple += emissionMultiple;
 
-            getUserByGobblerId[ id] = msg.sender;
+            getUserByGobblerId[id] = msg.sender;
 
             IArtGobblers(artGobblers).transferFrom(msg.sender, address(this), id);
         }
 
         // update user data
-        getUserData[ msg.sender].gobblersOwned += totalNumber;
-        getUserData[ msg.sender].emissionMultiple += sumEmissionMultiple;
+        getUserData[msg.sender].gobblersOwned += totalNumber;
+        getUserData[msg.sender].emissionMultiple += sumEmissionMultiple;
 
         // update global data
         globalData.totalGobblersOwned += totalNumber;
@@ -237,9 +237,9 @@ contract VoltronGobblers is Owned {
 
         uint32 totalNumber = uint32(gobblerIds.length);
         for (uint256 i = 0; i < totalNumber; ++i) {
-            id = gobblerIds[ i];
+            id = gobblerIds[i];
             (holder,, emissionMultiple) = IArtGobblers(artGobblers).getGobblerData(id);
-            require(getUserByGobblerId[ id] == msg.sender, "WRONG_OWNER");
+            require(getUserByGobblerId[id] == msg.sender, "WRONG_OWNER");
 
             sumEmissionMultiple += emissionMultiple;
 
@@ -249,8 +249,8 @@ contract VoltronGobblers is Owned {
         }
 
         // update user data
-        getUserData[ msg.sender].gobblersOwned -= totalNumber;
-        getUserData[ msg.sender].emissionMultiple -= sumEmissionMultiple;
+        getUserData[msg.sender].gobblersOwned -= totalNumber;
+        getUserData[msg.sender].emissionMultiple -= sumEmissionMultiple;
 
         // update global data
         globalData.totalGobblersOwned -= totalNumber;
@@ -276,20 +276,20 @@ contract VoltronGobblers is Owned {
 
         // (user's virtual goo / global virtual goo) * total cliamable num - claimed num
         uint256 claimableNum =
-            userVirtualBalance.divWadDown(globalBalance).mulWadDown(claimableGobblers.length) - uint256(getUserData[ msg.sender].claimedNum);
+            userVirtualBalance.divWadDown(globalBalance).mulWadDown(claimableGobblers.length) - uint256(getUserData[msg.sender].claimedNum);
 
         uint256 claimNum = gobblerIds.length;
         require(claimableNum >= claimNum, "CLAIM_TOO_MORE");
 
         // claim gobblers
         for (uint256 i = 0; i < claimNum; i++) {
-            uint256 id = gobblerIds[ i];
-            require(!gobblersClaimed[ id], "GOBBLER_ALREADY_CLAIMED");
+            uint256 id = gobblerIds[i];
+            require(!gobblersClaimed[id], "GOBBLER_ALREADY_CLAIMED");
             IArtGobblers(artGobblers).transferFrom(address(this), msg.sender, id);
-            gobblersClaimed[ id] = true;
+            gobblersClaimed[id] = true;
         }
 
-        getUserData[ msg.sender].claimedNum += uint64(claimNum);
+        getUserData[msg.sender].claimedNum += uint64(claimNum);
         claimableGobblersNum -= claimNum;
 
         emit GobblersClaimed(gobblerIds);
@@ -344,8 +344,8 @@ contract VoltronGobblers is Owned {
         uint256 updatedBalance = updateType == GooBalanceUpdateType.INCREASE ? gooBalance(user) + gooAmount : gooBalance(user) - gooAmount;
 
         // Snapshot the user's new goo balance with the current timestamp.
-        getUserData[ user].virtualBalance = uint128(updatedBalance);
-        getUserData[ user].lastTimestamp = uint64(block.timestamp);
+        getUserData[user].virtualBalance = uint128(updatedBalance);
+        getUserData[user].lastTimestamp = uint64(block.timestamp);
 
         emit GooBalanceUpdated(user, updatedBalance);
         return updatedBalance;
@@ -357,9 +357,9 @@ contract VoltronGobblers is Owned {
         // Compute the user's virtual goo balance by leveraging LibGOO.
         // prettier-ignore
         return LibGOO.computeGOOBalance(
-            getUserData[ user].emissionMultiple,
-            getUserData[ user].virtualBalance,
-            uint256(toDaysWadUnsafe(block.timestamp - getUserData[ user].lastTimestamp))
+            getUserData[user].emissionMultiple,
+            getUserData[user].virtualBalance,
+            uint256(toDaysWadUnsafe(block.timestamp - getUserData[user].lastTimestamp))
         );
     }
 

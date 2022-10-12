@@ -7,3 +7,6 @@
 [submodule "lib/2022-09-artgobblers"]
 	path = lib/2022-09-artgobblers
 	url = https://github.com/code-423n4/2022-09-artgobblers
+[submodule "lib/murky"]
+	path = lib/murky
+	url = https://github.com/dmfxyz/murky
