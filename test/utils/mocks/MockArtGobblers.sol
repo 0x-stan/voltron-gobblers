@@ -12,7 +12,8 @@ import { ArtGobblers } from "2022-09-artgobblers/src/ArtGobblers.sol";
 /// @author transmissions11 <t11s@paradigm.xyz>
 /// @notice An experimental decentralized art factory by Justin Roiland and Paradigm.
 contract MockArtGobblers is ArtGobblers {
-    mapping(address => bool) faucetClaimed;
+    mapping(address => uint256) public faucetClaimed;
+    uint256 public maxFaucet;
 
     /*//////////////////////////////////////////////////////////////
                                CONSTRUCTOR
@@ -45,15 +46,12 @@ contract MockArtGobblers is ArtGobblers {
     /// @notice Mint a gobbler from faucet.
     /// @return gobblerId The id of the gobbler that was minted.
     function mintFromFaucet() external returns (uint256 gobblerId) {
-        require(!faucetClaimed[msg.sender], "Already claimed from faucet");
-        faucetClaimed[msg.sender] = true;
-
-        uint256 currentPrice = gobblerPrice();
+        require(faucetClaimed[msg.sender] < maxFaucet, "Couldn't claimed faucet gobbler any more");
+        faucetClaimed[msg.sender] += 1;
 
         unchecked {
-            ++numMintedFromGoo; // Overflow should be impossible due to the supply cap.
-
-            emit GobblerPurchased(msg.sender, gobblerId = ++currentNonLegendaryId, currentPrice);
+            // Overflow should be impossible due to supply cap of 10,000.
+            emit GobblerClaimed(msg.sender, gobblerId = ++currentNonLegendaryId);
         }
 
         _mint(msg.sender, gobblerId);
@@ -210,5 +208,9 @@ contract MockArtGobblers is ArtGobblers {
 
             emit GobblersRevealed(msg.sender, numGobblers, lastRevealedId);
         }
+    }
+
+    function setMaxFaucet(uint256 newMaxFaucet) external onlyOwner {
+        maxFaucet = newMaxFaucet;
     }
 }

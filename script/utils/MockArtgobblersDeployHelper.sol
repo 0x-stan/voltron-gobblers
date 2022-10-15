@@ -27,7 +27,7 @@ import { ProofHelper } from "./ProofHelper.sol";
 abstract contract MockArtGobblersDeployHelper is Script {
     using LibString for uint256;
 
-    ArtGobblers internal gobblers;
+    MockArtGobblers internal gobblers;
     VRFCoordinatorMock internal vrfCoordinator;
     LinkToken internal linkToken;
     Goo internal goo;
@@ -99,6 +99,9 @@ abstract contract MockArtGobblersDeployHelper is Script {
 
         // need link token to reqeustRandomSeed
         linkToken.transfer(address(randProvider), 10000e18);
+
+        // set max faucet gobblers number
+        gobblers.setMaxFaucet(10);
     }
 
     /// @notice Call back vrf with randomness and reveal gobblers.
