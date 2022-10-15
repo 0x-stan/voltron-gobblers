@@ -145,7 +145,7 @@ contract VoltronGobblers is Owned {
         uint64 lastTimestamp;
     }
 
-    VoltronGooData voltronGooData;
+    VoltronGooData public voltronGooData;
 
     /*//////////////////////////////////////////////////////////////
                                 admin
@@ -159,11 +159,11 @@ contract VoltronGobblers is Owned {
                                 EVENTS
     //////////////////////////////////////////////////////////////*/
 
-    event GobblerDepsit(uint256[] indexed gobblerIds);
-    event GobblerWithdraw(uint256[] indexed gobblerIds);
+    event GobblerDepsit(address indexed user, uint256[] indexed gobblerIds);
+    event GobblerWithdraw(address indexed user, uint256[] indexed gobblerIds);
     event GooBalanceUpdated(address indexed user, uint256 newGooBalance);
     event GobblerMinted(uint256 indexed num, uint256 indexed gobblerId);
-    event GobblersClaimed(uint256[] indexed gobblerIds);
+    event GobblersClaimed(address indexed user, uint256[] indexed gobblerIds);
     event ClaimVoltronGoo(address indexed to, uint256 indexed amount);
 
     /*//////////////////////////////////////////////////////////////
@@ -222,7 +222,7 @@ contract VoltronGobblers is Owned {
         globalData.totalGobblersOwned += totalNumber;
         globalData.totalEmissionMultiple += sumEmissionMultiple;
 
-        emit GobblerDepsit(gobblerIds);
+        emit GobblerDepsit(msg.sender, gobblerIds);
     }
 
     function withdrawGobblers(uint256[] calldata gobblerIds) external {
@@ -256,7 +256,7 @@ contract VoltronGobblers is Owned {
         globalData.totalGobblersOwned -= totalNumber;
         globalData.totalEmissionMultiple -= sumEmissionMultiple;
 
-        emit GobblerWithdraw(gobblerIds);
+        emit GobblerWithdraw(msg.sender, gobblerIds);
     }
 
     function mintVoltronGobblers(uint256 maxPrice, uint256 num) external canMint {
@@ -292,7 +292,7 @@ contract VoltronGobblers is Owned {
         getUserData[msg.sender].claimedNum += uint64(claimNum);
         claimableGobblersNum -= claimNum;
 
-        emit GobblersClaimed(gobblerIds);
+        emit GobblersClaimed(msg.sender, gobblerIds);
     }
 
     function claimVoltronGoo() external canClaimGoo {
