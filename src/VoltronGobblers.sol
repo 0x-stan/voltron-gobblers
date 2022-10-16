@@ -162,7 +162,7 @@ contract VoltronGobblers is Owned {
     event GobblerDepsit(address indexed user, uint256[] indexed gobblerIds);
     event GobblerWithdraw(address indexed user, uint256[] indexed gobblerIds);
     event GooBalanceUpdated(address indexed user, uint256 newGooBalance);
-    event GobblerMinted(uint256 indexed num, uint256 indexed gobblerId);
+    event GobblerMinted(uint256 indexed num, uint256[] indexed gobblerIds);
     event GobblersClaimed(address indexed user, uint256[] indexed gobblerIds);
     event ClaimVoltronGoo(address indexed to, uint256 indexed amount);
 
@@ -260,12 +260,14 @@ contract VoltronGobblers is Owned {
     }
 
     function mintVoltronGobblers(uint256 maxPrice, uint256 num) external canMint {
+        uint256[] memory gobblerIds = new uint256[](num);
         for (uint256 i = 0; i < num; i++) {
             uint256 gobblerId = IArtGobblers(artGobblers).mintFromGoo(maxPrice, true);
+            gobblerIds[i]= gobblerId;
             claimableGobblers.push(gobblerId);
-            emit GobblerMinted(num, gobblerId);
         }
         claimableGobblersNum += num;
+        emit GobblerMinted(num, gobblerIds);
     }
 
     function claimVoltronGobblers(uint256[] calldata gobblerIds) external canClaimGobbler {
