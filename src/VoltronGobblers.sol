@@ -159,11 +159,11 @@ contract VoltronGobblers is Owned {
                                 EVENTS
     //////////////////////////////////////////////////////////////*/
 
-    event GobblerDepsit(address indexed user, uint256[] indexed gobblerIds);
-    event GobblerWithdraw(address indexed user, uint256[] indexed gobblerIds);
+    event GobblerDepsit(address indexed user, uint256[] indexed IndexedGobblerIds, uint256[] gobblerIds);
+    event GobblerWithdraw(address indexed user, uint256[] indexed IndexedGobblerIds, uint256[] gobblerIds);
     event GooBalanceUpdated(address indexed user, uint256 newGooBalance);
-    event GobblerMinted(uint256 indexed num, uint256[] indexed gobblerIds);
-    event GobblersClaimed(address indexed user, uint256[] indexed gobblerIds);
+    event GobblerMinted(uint256 indexed num, uint256[] indexed IndexedGobblerIds, uint256[] gobblerIds);
+    event GobblersClaimed(address indexed user, uint256[] indexed IndexedGobblerIds, uint256[] gobblerIds);
     event ClaimVoltronGoo(address indexed to, uint256 indexed amount);
 
     /*//////////////////////////////////////////////////////////////
@@ -222,7 +222,7 @@ contract VoltronGobblers is Owned {
         globalData.totalGobblersOwned += totalNumber;
         globalData.totalEmissionMultiple += sumEmissionMultiple;
 
-        emit GobblerDepsit(msg.sender, gobblerIds);
+        emit GobblerDepsit(msg.sender, gobblerIds, gobblerIds);
     }
 
     function withdrawGobblers(uint256[] calldata gobblerIds) external {
@@ -256,7 +256,7 @@ contract VoltronGobblers is Owned {
         globalData.totalGobblersOwned -= totalNumber;
         globalData.totalEmissionMultiple -= sumEmissionMultiple;
 
-        emit GobblerWithdraw(msg.sender, gobblerIds);
+        emit GobblerWithdraw(msg.sender, gobblerIds, gobblerIds);
     }
 
     function mintVoltronGobblers(uint256 maxPrice, uint256 num) external canMint {
@@ -267,7 +267,7 @@ contract VoltronGobblers is Owned {
             claimableGobblers.push(gobblerId);
         }
         claimableGobblersNum += num;
-        emit GobblerMinted(num, gobblerIds);
+        emit GobblerMinted(num, gobblerIds, gobblerIds);
     }
 
     function claimVoltronGobblers(uint256[] calldata gobblerIds) external canClaimGobbler {
@@ -294,7 +294,7 @@ contract VoltronGobblers is Owned {
         getUserData[msg.sender].claimedNum += uint64(claimNum);
         claimableGobblersNum -= claimNum;
 
-        emit GobblersClaimed(msg.sender, gobblerIds);
+        emit GobblersClaimed(msg.sender, gobblerIds, gobblerIds);
     }
 
     function claimVoltronGoo() external canClaimGoo {

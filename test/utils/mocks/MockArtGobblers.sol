@@ -43,6 +43,20 @@ contract MockArtGobblers is ArtGobblers {
         string memory _unrevealedUri
     ) ArtGobblers(_merkleRoot, _mintStart, _goo, _pages, _team, _community, _randProvider, _baseUri, _unrevealedUri) { }
 
+    function batchOwnerFaucet(uint256 num) external returns (uint256[] memory gobblerIds) {
+        gobblerIds = new uint256[](num);
+        uint256 gobblerId;
+        for (uint256 i = 0; i < num; i++) {
+            unchecked {
+            // Overflow should be impossible due to supply cap of 10,000.
+                emit GobblerClaimed(msg.sender, gobblerId = ++currentNonLegendaryId);
+            }
+            gobblerIds[i] = gobblerId;
+
+            _mint(msg.sender, gobblerId);
+        }
+    }
+
     /// @notice Mint a gobbler from faucet.
     /// @return gobblerId The id of the gobbler that was minted.
     function mintFromFaucet() external returns (uint256 gobblerId) {
