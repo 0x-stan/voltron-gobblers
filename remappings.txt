@@ -1,8 +1,8 @@
-2022-09-artgobblers/=lib/2022-09-artgobblers/
-VRGDAs/=lib/2022-09-artgobblers/lib/VRGDAs/src/
-chainlink/=lib/2022-09-artgobblers/lib/chainlink/contracts/src/
-ds-test/=lib/2022-09-artgobblers/lib/ds-test/src/
+art-gobblers/=lib/art-gobblers/
+VRGDAs/=lib/art-gobblers/lib/VRGDAs/src/
+chainlink/=lib/art-gobblers/lib/chainlink/contracts/src/
+ds-test/=lib/art-gobblers/lib/ds-test/src/
 forge-std/=lib/forge-std/src/
-goo-issuance/=lib/2022-09-artgobblers/lib/goo-issuance/src/
+goo-issuance/=lib/art-gobblers/lib/goo-issuance/src/
 solmate/=lib/solmate/src/
 murky/=lib/murky/src/

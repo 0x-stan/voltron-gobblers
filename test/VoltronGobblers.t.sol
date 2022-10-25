@@ -4,7 +4,7 @@ pragma solidity ^0.8.13;
 import { console2 } from "forge-std/console2.sol";
 
 import { VoltronGobblers } from "src/VoltronGobblers.sol";
-import { ArtGobblers, FixedPointMathLib } from "2022-09-artgobblers/src/ArtGobblers.sol";
+import { ArtGobblers, FixedPointMathLib } from "art-gobblers/src/ArtGobblers.sol";
 import { ArtGobblersDeployHelper } from "./utils/ArtGobblersDeployHelper.sol";
 
 contract VoltronGobblersTest is ArtGobblersDeployHelper {

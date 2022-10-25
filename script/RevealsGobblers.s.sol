@@ -5,7 +5,7 @@ import "forge-std/Script.sol";
 import "forge-std/console.sol";
 
 import { MockArtGobblers } from "../test/utils/mocks/MockArtGobblers.sol";
-import { RandProvider } from "2022-09-artgobblers/src/utils/rand/RandProvider.sol";
+import { RandProvider } from "art-gobblers/src/utils/rand/RandProvider.sol";
 import { VRFCoordinatorMock } from "chainlink/v0.8/mocks/VRFCoordinatorMock.sol";
 import { ProofHelper } from "./utils/ProofHelper.sol";
 import { DeploymentHelper } from "./utils/DeploymentHelper.sol";
@@ -28,7 +28,7 @@ contract RevealsGobblers is Script {
 
         // check if can reveal gobblers by chainlink
         // else use mock reveal function
-        (, uint64 nextRevealTimestamp, uint56 lastRevealedId, uint56 toBeRevealed, bool waitingForSeed) = gobblers.gobblerRevealsData();
+        (, uint64 nextRevealTimestamp, uint64 lastRevealedId, uint56 toBeRevealed, bool waitingForSeed) = gobblers.gobblerRevealsData();
         if (block.timestamp >= nextRevealTimestamp && !waitingForSeed) {
             revealGobblers(toBeRevealed);
         } else {

@@ -1,11 +1,11 @@
 // SPDX-License-Identifier: MIT
 pragma solidity >=0.8.0;
 
-import { RandProvider } from "2022-09-artgobblers/src/utils/rand/RandProvider.sol";
-import { GobblersERC721 } from "2022-09-artgobblers/src/utils/token/GobblersERC721.sol";
-import { Goo } from "2022-09-artgobblers/src/Goo.sol";
-import { Pages } from "2022-09-artgobblers/src/Pages.sol";
-import { ArtGobblers } from "2022-09-artgobblers/src/ArtGobblers.sol";
+import { RandProvider } from "art-gobblers/src/utils/rand/RandProvider.sol";
+import { GobblersERC721 } from "art-gobblers/src/utils/token/GobblersERC721.sol";
+import { Goo } from "art-gobblers/src/Goo.sol";
+import { Pages } from "art-gobblers/src/Pages.sol";
+import { ArtGobblers } from "art-gobblers/src/ArtGobblers.sol";
 
 /// @title Art Gobblers NFT
 /// @author FrankieIsLost <frankie@paradigm.xyz>
