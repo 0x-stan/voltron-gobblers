@@ -86,6 +86,50 @@ contract VoltronGobblersTest is ArtGobblersDeployHelper {
         assertEq(gobblers.ownerOf(voltronGobblerId), address(voltron));
     }
 
+    function testUpdateGlobalBalance() public {
+        uint256 sum = 0;
+        uint256[] memory gobblersNums = new uint256[](3);
+        gobblersNums[0] = 30;
+        gobblersNums[1] = 20;
+        gobblersNums[2] = 10;
+        uint256[][] memory gobblersIds = new uint256[][](3);
+        for (uint256 i = 0; i < gobblersNums.length; i++) {
+            sum += gobblersNums[i];
+            gobblersIds[i] = mintGobblers(users[i], gobblersNums[i]);
+        }
+        vm.warp(block.timestamp + 1 days);
+        setRandomnessAndReveal(sum, "seed");
+
+        for (uint256 i = 0; i < gobblersNums.length; i++) {
+            deposit(users[i], gobblersIds[i]);
+        }
+
+        vm.warp(block.timestamp + 5 days);
+
+        uint256 gooSum;
+        for (uint256 i = 0; i < gobblersNums.length; i++) {
+            gooSum += voltron.gooBalance(users[i]);
+        }
+        assertTrue(gooSum == voltron.updateGlobalBalance());
+
+        gooSum = 0;
+        voltron.mintVoltronGobblers(type(uint256).max, 2);
+        vm.warp(block.timestamp + 5 days);
+        for (uint256 i = 0; i < gobblersNums.length; i++) {
+            gooSum += voltron.gooBalance(users[i]);
+        }
+        assertTrue(gooSum == voltron.updateGlobalBalance());
+
+        gooSum = 0;
+        voltron.mintVoltronGobblers(type(uint256).max, 3);
+        vm.warp(block.timestamp + 5 days);
+        for (uint256 i = 0; i < gobblersNums.length; i++) {
+            gooSum += voltron.gooBalance(users[i]);
+        }
+        assertTrue(gooSum == voltron.updateGlobalBalance());
+        
+    }
+
     function testClaimVoltronGobblersFuzz(uint32 percent) public {
         // the percent of users[0] deposit of total 100
         uint256 percentOne = type(uint32).max / 100;
@@ -145,7 +189,7 @@ contract VoltronGobblersTest is ArtGobblersDeployHelper {
             claimIds[i] = voltron.claimableGobblers(i);
         }
         vm.startPrank(users[0]);
-        vm.expectRevert("CLAIM_TOO_MORE");
+        vm.expectRevert("CLAIM_TOO_MUCH");
         voltron.claimVoltronGobblers(claimIds);
         vm.stopPrank();
         vm.revertTo(snapshotId);
@@ -204,7 +248,7 @@ contract VoltronGobblersTest is ArtGobblersDeployHelper {
         vm.startPrank(users[0]);
         voltron.withdrawGobblers(gobblerIds0);
         vm.warp(block.timestamp + 1 days);
-        vm.expectRevert("CLAIM_TOO_MORE");
+        vm.expectRevert("CLAIM_TOO_MUCH");
         voltron.claimVoltronGobblers(claimIds);
 
         uint256[] memory newClaimIds = new uint256[](claimNum-5);
@@ -243,7 +287,7 @@ contract VoltronGobblersTest is ArtGobblersDeployHelper {
         voltron.claimVoltronGobblers(claimIds);
         vm.stopPrank();
 
-        // just in case round down cause "CLAIM_TOO_MORE"
+        // just in case round down cause "CLAIM_TOO_MUCH"
         vm.warp(block.timestamp + 1 days);
 
         vm.startPrank(users[1]);
