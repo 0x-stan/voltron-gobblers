@@ -71,13 +71,14 @@ pragma solidity >=0.8.0;
 */
 
 import { Owned } from "solmate/auth/Owned.sol";
+import { ReentrancyGuard } from "solmate/utils/ReentrancyGuard.sol";
 import { IArtGobblers } from "src/utils/IArtGobblers.sol";
 import { IGOO } from "src/utils/IGOO.sol";
 import { FixedPointMathLib } from "solmate/utils/FixedPointMathLib.sol";
 import { toWadUnsafe, toDaysWadUnsafe } from "solmate/utils/SignedWadMath.sol";
 import { LibGOO } from "goo-issuance/LibGOO.sol";
 
-contract VoltronGobblers is Owned {
+contract VoltronGobblers is ReentrancyGuard, Owned {
     using FixedPointMathLib for uint256;
 
     /*//////////////////////////////////////////////////////////////
@@ -190,7 +191,7 @@ contract VoltronGobblers is Owned {
         goo = goo_;
     }
 
-    function depositGobblers(uint256[] calldata gobblerIds) external {
+    function depositGobblers(uint256[] calldata gobblerIds) external nonReentrant {
         // update user virtual balance of GOO
         updateGlobalBalance();
         updateUserGooBalance(msg.sender, 0, GooBalanceUpdateType.INCREASE);
@@ -205,7 +206,7 @@ contract VoltronGobblers is Owned {
             id = gobblerIds[i];
             (holder,, emissionMultiple) = IArtGobblers(artGobblers).getGobblerData(id);
             require(holder == msg.sender, "WRONG_OWNER");
-            require(emissionMultiple > 0, "GOBBLER_MUST_REVEALED");
+            require(emissionMultiple > 0, "GOBBLER_MUST_BE_REVEALED");
 
             sumEmissionMultiple += emissionMultiple;
 
@@ -225,7 +226,7 @@ contract VoltronGobblers is Owned {
         emit GobblerDeposited(msg.sender, gobblerIds, gobblerIds);
     }
 
-    function withdrawGobblers(uint256[] calldata gobblerIds) external {
+    function withdrawGobblers(uint256[] calldata gobblerIds) external nonReentrant {
         // update user virtual balance of GOO
         updateGlobalBalance();
         updateUserGooBalance(msg.sender, 0, GooBalanceUpdateType.DECREASE);
@@ -259,7 +260,7 @@ contract VoltronGobblers is Owned {
         emit GobblerWithdrawn(msg.sender, gobblerIds, gobblerIds);
     }
 
-    function mintVoltronGobblers(uint256 maxPrice, uint256 num) external canMint {
+    function mintVoltronGobblers(uint256 maxPrice, uint256 num) external nonReentrant canMint {
         uint256[] memory gobblerIds = new uint256[](num);
         for (uint256 i = 0; i < num; i++) {
             uint256 gobblerId = IArtGobblers(artGobblers).mintFromGoo(maxPrice, true);
@@ -270,7 +271,7 @@ contract VoltronGobblers is Owned {
         emit GobblerMinted(num, gobblerIds, gobblerIds);
     }
 
-    function claimVoltronGobblers(uint256[] calldata gobblerIds) external canClaimGobbler {
+    function claimVoltronGobblers(uint256[] calldata gobblerIds) external nonReentrant canClaimGobbler {
         uint256 globalBalance = updateGlobalBalance();
         uint256 userVirtualBalance = updateUserGooBalance(msg.sender, 0, GooBalanceUpdateType.DECREASE);
 
@@ -295,7 +296,7 @@ contract VoltronGobblers is Owned {
         emit GobblersClaimed(msg.sender, gobblerIds, gobblerIds);
     }
 
-    function claimVoltronGoo() external canClaimGoo {
+    function claimVoltronGoo() external nonReentrant canClaimGoo {
         // require all pool gobblers have been claimed
         require(mintLock, "SHOULD_STOP_MINT");
         require(claimableGobblersNum == 0, "SHOULD_CLAIM_GOBBLER");
