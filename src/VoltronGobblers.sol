@@ -71,13 +71,14 @@ pragma solidity >=0.8.0;
 */
 
 import { Owned } from "solmate/auth/Owned.sol";
+import { ReentrancyGuard } from "solmate/utils/ReentrancyGuard.sol";
 import { IArtGobblers } from "src/utils/IArtGobblers.sol";
 import { IGOO } from "src/utils/IGOO.sol";
 import { FixedPointMathLib } from "solmate/utils/FixedPointMathLib.sol";
 import { toWadUnsafe, toDaysWadUnsafe } from "solmate/utils/SignedWadMath.sol";
 import { LibGOO } from "goo-issuance/LibGOO.sol";
 
-contract VoltronGobblers is Owned {
+contract VoltronGobblers is ReentrancyGuard, Owned {
     using FixedPointMathLib for uint256;
 
     /*//////////////////////////////////////////////////////////////
@@ -103,9 +104,9 @@ contract VoltronGobblers is Owned {
         // User's goo balance at time of last checkpointing.
         uint128 virtualBalance;
         // claimed pool's gobbler number
-        uint64 claimedNum;
+        uint16 claimedNum;
         // Timestamp of the last goo balance checkpoint.
-        uint64 lastTimestamp;
+        uint48 lastTimestamp;
     }
     /// @notice Maps user addresses to their account data.
 
@@ -130,7 +131,7 @@ contract VoltronGobblers is Owned {
         // User's goo balance at time of last checkpointing.
         uint128 totalVirtualBalance;
         // Timestamp of the last goo balance checkpoint.
-        uint64 lastTimestamp;
+        uint48 lastTimestamp;
     }
 
     GlobalData public globalData;
@@ -159,12 +160,12 @@ contract VoltronGobblers is Owned {
                                 EVENTS
     //////////////////////////////////////////////////////////////*/
 
-    event GobblerDepsit(address indexed user, uint256[] indexed IndexedGobblerIds, uint256[] gobblerIds);
-    event GobblerWithdraw(address indexed user, uint256[] indexed IndexedGobblerIds, uint256[] gobblerIds);
+    event GobblerDeposited(address indexed user, uint256[] indexed IndexedGobblerIds, uint256[] gobblerIds);
+    event GobblerWithdrawn(address indexed user, uint256[] indexed IndexedGobblerIds, uint256[] gobblerIds);
     event GooBalanceUpdated(address indexed user, uint256 newGooBalance);
     event GobblerMinted(uint256 indexed num, uint256[] indexed IndexedGobblerIds, uint256[] gobblerIds);
     event GobblersClaimed(address indexed user, uint256[] indexed IndexedGobblerIds, uint256[] gobblerIds);
-    event ClaimVoltronGoo(address indexed to, uint256 indexed amount);
+    event VoltronGooClaimed(address indexed to, uint256 indexed amount);
 
     /*//////////////////////////////////////////////////////////////
                                 MODIFIER
@@ -190,7 +191,7 @@ contract VoltronGobblers is Owned {
         goo = goo_;
     }
 
-    function depositGobblers(uint256[] calldata gobblerIds) external {
+    function depositGobblers(uint256[] calldata gobblerIds) external nonReentrant {
         // update user virtual balance of GOO
         updateGlobalBalance();
         updateUserGooBalance(msg.sender, 0, GooBalanceUpdateType.INCREASE);
@@ -205,7 +206,7 @@ contract VoltronGobblers is Owned {
             id = gobblerIds[i];
             (holder,, emissionMultiple) = IArtGobblers(artGobblers).getGobblerData(id);
             require(holder == msg.sender, "WRONG_OWNER");
-            require(emissionMultiple > 0, "GOBBLER_MUST_REVEALED");
+            require(emissionMultiple > 0, "GOBBLER_MUST_BE_REVEALED");
 
             sumEmissionMultiple += emissionMultiple;
 
@@ -222,10 +223,10 @@ contract VoltronGobblers is Owned {
         globalData.totalGobblersOwned += totalNumber;
         globalData.totalEmissionMultiple += sumEmissionMultiple;
 
-        emit GobblerDepsit(msg.sender, gobblerIds, gobblerIds);
+        emit GobblerDeposited(msg.sender, gobblerIds, gobblerIds);
     }
 
-    function withdrawGobblers(uint256[] calldata gobblerIds) external {
+    function withdrawGobblers(uint256[] calldata gobblerIds) external nonReentrant {
         // update user virtual balance of GOO
         updateGlobalBalance();
         updateUserGooBalance(msg.sender, 0, GooBalanceUpdateType.DECREASE);
@@ -256,48 +257,46 @@ contract VoltronGobblers is Owned {
         globalData.totalGobblersOwned -= totalNumber;
         globalData.totalEmissionMultiple -= sumEmissionMultiple;
 
-        emit GobblerWithdraw(msg.sender, gobblerIds, gobblerIds);
+        emit GobblerWithdrawn(msg.sender, gobblerIds, gobblerIds);
     }
 
-    function mintVoltronGobblers(uint256 maxPrice, uint256 num) external canMint {
+    function mintVoltronGobblers(uint256 maxPrice, uint256 num) external nonReentrant canMint {
         uint256[] memory gobblerIds = new uint256[](num);
         for (uint256 i = 0; i < num; i++) {
             uint256 gobblerId = IArtGobblers(artGobblers).mintFromGoo(maxPrice, true);
-            gobblerIds[i]= gobblerId;
+            gobblerIds[i] = gobblerId;
             claimableGobblers.push(gobblerId);
         }
         claimableGobblersNum += num;
         emit GobblerMinted(num, gobblerIds, gobblerIds);
     }
 
-    function claimVoltronGobblers(uint256[] calldata gobblerIds) external canClaimGobbler {
+    function claimVoltronGobblers(uint256[] calldata gobblerIds) external nonReentrant canClaimGobbler {
         uint256 globalBalance = updateGlobalBalance();
         uint256 userVirtualBalance = updateUserGooBalance(msg.sender, 0, GooBalanceUpdateType.DECREASE);
 
-        // check virtual balance enough
-
-        // (user's virtual goo / global virtual goo) * total cliamable num - claimed num
+        // (user's virtual goo / global virtual goo) * total claimable num - claimed num
         uint256 claimableNum =
             userVirtualBalance.divWadDown(globalBalance).mulWadDown(claimableGobblers.length) - uint256(getUserData[msg.sender].claimedNum);
 
         uint256 claimNum = gobblerIds.length;
-        require(claimableNum >= claimNum, "CLAIM_TOO_MORE");
+        require(claimableNum >= claimNum, "CLAIM_TOO_MUCH");
+
+        getUserData[msg.sender].claimedNum += uint16(claimNum);
+        claimableGobblersNum -= claimNum;
 
         // claim gobblers
         for (uint256 i = 0; i < claimNum; i++) {
             uint256 id = gobblerIds[i];
             require(!gobblersClaimed[id], "GOBBLER_ALREADY_CLAIMED");
-            IArtGobblers(artGobblers).transferFrom(address(this), msg.sender, id);
             gobblersClaimed[id] = true;
+            IArtGobblers(artGobblers).transferFrom(address(this), msg.sender, id);
         }
-
-        getUserData[msg.sender].claimedNum += uint64(claimNum);
-        claimableGobblersNum -= claimNum;
 
         emit GobblersClaimed(msg.sender, gobblerIds, gobblerIds);
     }
 
-    function claimVoltronGoo() external canClaimGoo {
+    function claimVoltronGoo() external nonReentrant canClaimGoo {
         // require all pool gobblers have been claimed
         require(mintLock, "SHOULD_STOP_MINT");
         require(claimableGobblersNum == 0, "SHOULD_CLAIM_GOBBLER");
@@ -308,7 +307,7 @@ contract VoltronGobblers is Owned {
             claimableGoo = uint128(IArtGobblers(artGobblers).gooBalance(address(this)));
             IArtGobblers(artGobblers).removeGoo(claimableGoo);
             voltronGooData.claimableGoo = claimableGoo;
-            voltronGooData.lastTimestamp = uint64(block.timestamp);
+            voltronGooData.lastTimestamp = uint48(block.timestamp);
         }
 
         uint256 globalBalance = updateGlobalBalance();
@@ -321,7 +320,7 @@ contract VoltronGobblers is Owned {
 
         IGOO(goo).transfer(msg.sender, amount);
 
-        emit ClaimVoltronGoo(msg.sender, amount);
+        emit VoltronGooClaimed(msg.sender, amount);
     }
 
     function updateGlobalBalance() public returns (uint256) {
@@ -332,7 +331,7 @@ contract VoltronGobblers is Owned {
         );
         // update global balance
         globalData.totalVirtualBalance = uint128(updatedBalance);
-        globalData.lastTimestamp = uint64(block.timestamp);
+        globalData.lastTimestamp = uint48(block.timestamp);
         return updatedBalance;
     }
 
@@ -347,7 +346,7 @@ contract VoltronGobblers is Owned {
 
         // Snapshot the user's new goo balance with the current timestamp.
         getUserData[user].virtualBalance = uint128(updatedBalance);
-        getUserData[user].lastTimestamp = uint64(block.timestamp);
+        getUserData[user].lastTimestamp = uint48(block.timestamp);
 
         emit GooBalanceUpdated(user, updatedBalance);
         return updatedBalance;
