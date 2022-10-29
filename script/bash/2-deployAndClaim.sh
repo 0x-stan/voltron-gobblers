@@ -2,6 +2,7 @@ whitelistNum=20
 
 # deploy
 forge script script/deploy.s.sol -f $RPC_URL --private-key $DEPLOY_PK -vvv --broadcast
+sleep 1
 
 # whitelist claim
 PK=$DEPLOY_PK
@@ -17,11 +18,13 @@ do
     then
         echo "transfer ether to $newWallet"
         cast send $newWallet --value $claimgas --rpc-url $RPC_URL --private-key $DEPLOY_PK
+        sleep 1
     fi
 
     forge script script/WhitelistClaim.s.sol -f $RPC_URL --private-key $PK -vvv --broadcast
 
     PK=$(cast keccak $PK)
     # echo "\nfrom new wallet $newWallet"
+    sleep 1
 
 done
