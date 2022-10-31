@@ -52,20 +52,68 @@ contract VoltronGobblersTest is ArtGobblersDeployHelper {
     }
 
     function testWithdrawGobblers() public {
-        uint256 gobblersNum = 2;
-        uint256[] memory gobblerIds = mintGobblers(users[0], gobblersNum);
+        uint256 gobblersNum = 10;
+        uint256[] memory gobblerIds0 = mintGobblers(users[0], gobblersNum);
+        uint256[] memory gobblerIds1 = mintGobblers(users[1], gobblersNum);
+        uint256[] memory gobblerIds2 = mintGobblers(users[2], gobblersNum);
         vm.warp(block.timestamp + 1 days);
-        setRandomnessAndReveal(gobblersNum, "seed");
+        setRandomnessAndReveal(gobblersNum * 3, "seed");
 
-        deposit(users[0], gobblerIds);
-        withraw(users[0], gobblerIds);
+        deposit(users[0], gobblerIds0);
+        deposit(users[1], gobblerIds1);
+        deposit(users[2], gobblerIds2);
+
+
+        vm.warp(block.timestamp + 5 days);
+        withraw(users[0], gobblerIds0);
+        vm.warp(block.timestamp + 5 days);
+        withraw(users[1], gobblerIds1);
+        withraw(users[2], gobblerIds2);
 
         assertEq(gobblers.balanceOf(address(voltron)), 0);
         assertEq(gobblers.balanceOf(users[0]), gobblersNum);
         for (uint256 i = 0; i < gobblersNum; i++) {
-            assertEq(gobblers.ownerOf(gobblerIds[i]), users[0]);
-            assertEq(voltron.getUserByGobblerId(gobblerIds[i]), address(0));
+            assertEq(gobblers.ownerOf(gobblerIds0[i]), users[0]);
+            assertEq(voltron.getUserByGobblerId(gobblerIds0[i]), address(0));
+
+            assertEq(gobblers.ownerOf(gobblerIds1[i]), users[1]);
+            assertEq(voltron.getUserByGobblerId(gobblerIds1[i]), address(0));
+
+            assertEq(gobblers.ownerOf(gobblerIds2[i]), users[2]);
+            assertEq(voltron.getUserByGobblerId(gobblerIds2[i]), address(0));
         }
+    }
+
+    function testWithdrawGobblersLastDepositor() public {
+        uint256 gobblersNum = 10;
+        uint256[] memory gobblerIds0 = mintGobblers(users[0], gobblersNum);
+        uint256[] memory gobblerIds1 = mintGobblers(users[1], gobblersNum);
+        uint256[] memory gobblerIds2 = mintGobblers(users[2], gobblersNum);
+        vm.warp(block.timestamp + 1 days);
+        setRandomnessAndReveal(gobblersNum * 3, "seed");
+
+        deposit(users[0], gobblerIds0);
+        deposit(users[1], gobblerIds1);
+        deposit(users[2], gobblerIds2);
+        vm.warp(block.timestamp + 10 days);
+
+        uint256 mintNum = 10;
+        voltron.mintVoltronGobblers(type(uint256).max, mintNum);
+
+        
+        withraw(users[0], gobblerIds0);
+        withraw(users[1], gobblerIds1);
+
+        uint256[] memory claimIds2 = new uint256[](mintNum);
+        for (uint256 i = 0; i < mintNum; i++) {
+            claimIds2[i] = gobblersNum * 3 + 1 + i;
+        }
+        vm.prank(users[2]);
+        voltron.claimVoltronGobblers(claimIds2);
+        withraw(users[2], gobblerIds2);
+
+        assertEq(gobblers.balanceOf(address(voltron)), 0);
+        assertEq(gobblers.balanceOf(users[2]), gobblersNum + 10);
     }
 
     function testMintVoltronGobblers() public {
@@ -318,6 +366,47 @@ contract VoltronGobblersTest is ArtGobblersDeployHelper {
         uint256 sumClaimGoo = claimGoo0 + claimGoo1;
         uint256 lastGoo = (voltronGoo - sumClaimGoo).divWadDown(sumClaimGoo);
         assertTrue(lastGoo < 5e16);
+    }
+
+    function testClaimVoltronGooLastDepositor() public {
+        uint256 gobblersNum = 10;
+        uint256[] memory gobblerIds0 = mintGobblers(users[0], gobblersNum);
+        uint256[] memory gobblerIds1 = mintGobblers(users[1], gobblersNum);
+        uint256[] memory gobblerIds2 = mintGobblers(users[2], gobblersNum);
+        vm.warp(block.timestamp + 1 days);
+        setRandomnessAndReveal(gobblersNum * 3, "seed");
+
+        deposit(users[0], gobblerIds0);
+        deposit(users[1], gobblerIds1);
+        deposit(users[2], gobblerIds2);
+        vm.warp(block.timestamp + 10 days);
+
+        uint256 mintNum = 10;
+        voltron.mintVoltronGobblers(type(uint256).max, mintNum);
+        vm.warp(block.timestamp + 10 days);
+
+        withraw(users[0], gobblerIds0);
+        withraw(users[1], gobblerIds1);
+
+        uint256[] memory claimIds2 = new uint256[](mintNum);
+        for (uint256 i = 0; i < mintNum; i++) {
+            claimIds2[i] = gobblersNum * 3 + 1 + i;
+        }
+        vm.prank(users[2]);
+        voltron.claimVoltronGobblers(claimIds2);
+
+        vm.startPrank(voltron.owner());
+        voltron.setMintLock(true);
+        voltron.setClaimGooLock(false);
+        vm.stopPrank();
+
+        uint256 voltronGoo = gobblers.gooBalance(address(voltron));
+
+        vm.prank(users[2]);
+        voltron.claimVoltronGoo();
+
+        // the last depositor take all the goo
+        assertEq(goo.balanceOf(users[2]), voltronGoo);
     }
 
     /*//////////////////////////////////////////////////////////////

@@ -83,3 +83,11 @@ Use [mock ArtGobblers](./test/utils/mocks/MockArtGobblers.sol) for test.
 [![Watch the video](./analysis/VRGDA-200-15days.png)](https://www.youtube.com/watch?v=3wM2KcMUtE0)
 
 click to watch animation
+
+## Disclaimer
+
+- No token
+- Audit has not been completed
+- Contract is experimental
+- No commission
+- DYOR (Do your own research)

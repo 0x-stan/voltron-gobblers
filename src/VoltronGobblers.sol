@@ -275,9 +275,17 @@ contract VoltronGobblers is ReentrancyGuard, Owned {
         uint256 globalBalance = updateGlobalBalance();
         uint256 userVirtualBalance = updateUserGooBalance(msg.sender, 0, GooBalanceUpdateType.DECREASE);
 
-        // (user's virtual goo / global virtual goo) * total claimable num - claimed num
-        uint256 claimableNum =
-            userVirtualBalance.divWadDown(globalBalance).mulWadDown(claimableGobblers.length) - uint256(getUserData[msg.sender].claimedNum);
+        uint256 claimableNum;
+        // Since depositors before have already claimed their voltron gobblers,
+        // the last depositor will take all the voltron gobblers
+        if (getUserData[msg.sender].emissionMultiple >= globalData.totalEmissionMultiple) {
+            claimableNum = claimableGobblersNum;
+        } else {
+            // (user's virtual goo / global virtual goo) * total claimable num - claimed num
+            claimableNum =
+                userVirtualBalance.divWadDown(globalBalance).mulWadDown(claimableGobblers.length) - uint256(getUserData[msg.sender].claimedNum);
+        }
+
 
         uint256 claimNum = gobblerIds.length;
         require(claimableNum >= claimNum, "CLAIM_TOO_MUCH");
@@ -306,17 +314,22 @@ contract VoltronGobblers is ReentrancyGuard, Owned {
         if (uint256(voltronGooData.lastTimestamp) < block.timestamp) {
             claimableGoo = uint128(IArtGobblers(artGobblers).gooBalance(address(this)));
             IArtGobblers(artGobblers).removeGoo(claimableGoo);
-            voltronGooData.claimableGoo = claimableGoo;
             voltronGooData.lastTimestamp = uint48(block.timestamp);
         }
 
         uint256 globalBalance = updateGlobalBalance();
         uint256 updatedVirtualBalance = updateUserGooBalance(msg.sender, 0, GooBalanceUpdateType.DECREASE);
 
-        // check virtual balance enough
-
-        // (user's virtual goo / global virtual goo) * total cliamable goo
-        uint256 amount = updatedVirtualBalance.divWadDown(globalBalance).mulWadDown(claimableGoo);
+        uint256 amount;
+        // Since depositors before have already claimed their voltron gobblers,
+        // the last depositor will take all the voltron gobblers
+        if (getUserData[msg.sender].emissionMultiple >= globalData.totalEmissionMultiple) {
+            amount = claimableGoo;
+        } else {
+            // (user's virtual goo / global virtual goo) * total cliamable goo
+            amount = updatedVirtualBalance.divWadDown(globalBalance).mulWadDown(claimableGoo);
+        }        
+        voltronGooData.claimableGoo = uint128(claimableGoo - amount);
 
         IGOO(goo).transfer(msg.sender, amount);
 
