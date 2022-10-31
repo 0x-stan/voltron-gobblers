@@ -17,5 +17,5 @@ done
 echo $whitelistData > whitelist.txt
 
 # generate merkle proof of whitelist addresses
-forge script script/utils/GenerateMerkle.sol
+forge script script/goerli/utils/GenerateMerkle.sol
 

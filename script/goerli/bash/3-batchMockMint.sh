@@ -4,7 +4,7 @@ batchCount=2
 for (( i=1; i <= $batchCount; ++i ))
 do
     echo "\nbatch mint run $i:"
-    forge script script/mockmint.s.sol -f $RPC_URL --private-key $DEPLOY_PK -vvv --broadcast --skip-simulation 
+    forge script script/goerli/mockmint.s.sol -f $RPC_URL --private-key $DEPLOY_PK -vvv --broadcast --skip-simulation 
 done
 
 

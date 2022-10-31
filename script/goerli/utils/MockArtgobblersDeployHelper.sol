@@ -19,7 +19,7 @@ import { MockERC1155 } from "solmate/test/utils/mocks/MockERC1155.sol";
 import { LibString } from "solmate/utils/LibString.sol";
 import { fromDaysWadUnsafe } from "solmate/utils/SignedWadMath.sol";
 
-import { MockArtGobblers } from "../../test/utils/mocks/MockArtGobblers.sol";
+import { MockArtGobblers } from "test/utils/mocks/MockArtGobblers.sol";
 import { LibRLP } from "art-gobblers/test/utils/LibRLP.sol";
 import { ProofHelper } from "./ProofHelper.sol";
 

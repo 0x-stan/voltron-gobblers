@@ -10,10 +10,12 @@ library DeploymentHelper {
     Vm public constant vm = Vm(VM_ADDRESS);
 
     function loadDeployAddress(string memory key) internal returns (address addr) {
+        string memory network = "goerli";
+        if (block.chainid == 1) network = "mainnet";
         string[] memory cmds = new string[](4);
         cmds[0] = "jq";
         cmds[1] = key;
-        cmds[2] = "./deployment.json";
+        cmds[2] = string.concat("./deployment.", network, ".json");
         cmds[3] = "-r";
         bytes memory result = vm.ffi(cmds);
         addr = address(bytes20(result));

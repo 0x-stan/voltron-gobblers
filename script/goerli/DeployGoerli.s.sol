@@ -4,9 +4,9 @@ pragma solidity ^0.8.13;
 import "forge-std/Script.sol";
 import "forge-std/console.sol";
 import { MockArtGobblersDeployHelper } from "./utils/MockArtGobblersDeployHelper.sol";
-import { VoltronGobblers } from "../src/VoltronGobblers.sol";
+import { VoltronGobblers } from "src/VoltronGobblers.sol";
 
-contract DeployScript is MockArtGobblersDeployHelper {
+contract DeployGoerliScript is MockArtGobblersDeployHelper {
     VoltronGobblers voltron;
 
     function setUp() public override {
@@ -26,7 +26,10 @@ contract DeployScript is MockArtGobblersDeployHelper {
     }
 
     function logDeployedAddresses() internal {
-        string memory path = string.concat("./deployment.json");
+        string memory network = "goerli";
+        if (block.chainid == 1) network = "mainnet";
+
+        string memory path = string.concat("./deployment.", network, ".json");
         string memory data = "{";
 
         data = string.concat(data, "\"linkToken\":\"", vm.toString(address(linkToken)), "\",");

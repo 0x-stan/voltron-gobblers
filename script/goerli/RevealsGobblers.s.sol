@@ -4,7 +4,7 @@ pragma solidity ^0.8.13;
 import "forge-std/Script.sol";
 import "forge-std/console.sol";
 
-import { MockArtGobblers } from "../test/utils/mocks/MockArtGobblers.sol";
+import { MockArtGobblers } from "test/utils/mocks/MockArtGobblers.sol";
 import { RandProvider } from "art-gobblers/src/utils/rand/RandProvider.sol";
 import { VRFCoordinatorMock } from "chainlink/v0.8/mocks/VRFCoordinatorMock.sol";
 import { ProofHelper } from "./utils/ProofHelper.sol";

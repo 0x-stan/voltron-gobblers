@@ -1,7 +1,7 @@
 whitelistNum=20
 
 # deploy
-forge script script/deploy.s.sol -f $RPC_URL --private-key $DEPLOY_PK -vvv --broadcast
+forge script script/goerli/DeployGoerli.s.sol -f $RPC_URL --private-key $DEPLOY_PK -vvv --broadcast
 sleep 1
 
 # whitelist claim
@@ -21,7 +21,7 @@ do
         sleep 1
     fi
 
-    forge script script/WhitelistClaim.s.sol -f $RPC_URL --private-key $PK -vvv --broadcast
+    forge script script/goerli/WhitelistClaim.s.sol -f $RPC_URL --private-key $PK -vvv --broadcast
 
     PK=$(cast keccak $PK)
     # echo "\nfrom new wallet $newWallet"
