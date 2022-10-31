@@ -6,7 +6,7 @@ import "forge-std/console.sol";
 import { VoltronGobblers } from "src/VoltronGobblers.sol";
 
 contract DeployGoerliScript is Script {
-    address public immutable ownerAddr = msg.sender;
+    address public immutable ownerAddr = 0x47f8f7AdD6bBaFDd0C28782B5912dB1b9A37bDcf;
     address public immutable gobblersAddr = 0x60bb1e2AA1c9ACAfB4d34F71585D7e959f387769;
     address public immutable gooAddr = 0x600000000a36F3cD48407e35eB7C5c910dc1f7a8;
     address public immutable pagesAddr = 0x600Df00d3E42F885249902606383ecdcb65f2E02;
@@ -24,6 +24,7 @@ contract DeployGoerliScript is Script {
     function setUp() public {}
 
     function run() public {
+        console.log("ownerAddr", ownerAddr);
         vm.startBroadcast();
         
         voltron = new VoltronGobblers(ownerAddr, gobblersAddr, gooAddr);
