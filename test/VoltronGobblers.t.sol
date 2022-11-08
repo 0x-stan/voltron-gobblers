@@ -10,7 +10,7 @@ import { ArtGobblersDeployHelper } from "./utils/ArtGobblersDeployHelper.sol";
 contract VoltronGobblersTest is ArtGobblersDeployHelper {
     using FixedPointMathLib for uint256;
 
-    VoltronGobblers voltron;
+    VoltronGobblers public voltron;
 
     function setUp() public {
         deployArtGobblers();
