@@ -107,6 +107,8 @@ contract VoltronGobblers is ReentrancyGuard, Owned {
         uint16 claimedNum;
         // Timestamp of the last goo balance checkpoint.
         uint48 lastTimestamp;
+        // Timestamp of the last add goo
+        uint48 lastAddGooTimestamp;
     }
     /// @notice Maps user addresses to their account data.
 
@@ -140,21 +142,16 @@ contract VoltronGobblers is ReentrancyGuard, Owned {
     uint256[] public claimableGobblers;
     uint256 public claimableGobblersNum;
 
-    // only use when stop mint gobblers and could claim goo in pool
-    struct VoltronGooData {
-        uint128 claimableGoo;
-        uint64 lastTimestamp;
-    }
-
-    VoltronGooData public voltronGooData;
-
     /*//////////////////////////////////////////////////////////////
                                 admin
     //////////////////////////////////////////////////////////////*/
 
-    bool mintLock;
-    bool claimGobblerLock;
-    bool claimGooLock = true;
+    bool public mintLock;
+    bool public claimGobblerLock;
+
+    // must stake timeLockDuration time to withdraw
+    // Avoid directly claiming the cheaper gobbler after the user deposits goo
+    uint256 public timeLockDuration;
 
     /*//////////////////////////////////////////////////////////////
                                 EVENTS
@@ -181,19 +178,15 @@ contract VoltronGobblers is ReentrancyGuard, Owned {
         _;
     }
 
-    modifier canClaimGoo() {
-        require(!claimGooLock, "CLAIM_GOO_LOCK");
-        _;
-    }
-
-    constructor(address admin_, address artGobblers_, address goo_) Owned(admin_) {
+    constructor(address admin_, address artGobblers_, address goo_, uint256 timeLockDuration_) Owned(admin_) {
         artGobblers = artGobblers_;
         goo = goo_;
+        timeLockDuration = timeLockDuration_;
     }
 
-    function depositGobblers(uint256[] calldata gobblerIds) external nonReentrant {
+    function depositGobblers(uint256[] calldata gobblerIds, uint256 gooAmount) external nonReentrant {
         // update user virtual balance of GOO
-        updateGlobalBalance();
+        _updateGlobalBalance();
         updateUserGooBalance(msg.sender, 0, GooBalanceUpdateType.INCREASE);
 
         uint256 id;
@@ -224,11 +217,13 @@ contract VoltronGobblers is ReentrancyGuard, Owned {
         globalData.totalEmissionMultiple += sumEmissionMultiple;
 
         emit GobblerDeposited(msg.sender, gobblerIds, gobblerIds);
+
+        if (gooAmount > 0) _addGoo(gooAmount);
     }
 
     function withdrawGobblers(uint256[] calldata gobblerIds) external nonReentrant {
         // update user virtual balance of GOO
-        updateGlobalBalance();
+        _updateGlobalBalance();
         updateUserGooBalance(msg.sender, 0, GooBalanceUpdateType.DECREASE);
 
         uint256 id;
@@ -272,20 +267,15 @@ contract VoltronGobblers is ReentrancyGuard, Owned {
     }
 
     function claimVoltronGobblers(uint256[] calldata gobblerIds) external nonReentrant canClaimGobbler {
-        uint256 globalBalance = updateGlobalBalance();
+        // Avoid directly claiming the cheaper gobbler after the user deposits goo
+        require(getUserData[msg.sender].lastAddGooTimestamp + timeLockDuration <= block.timestamp, "CANT_CLAIM_NOW");
+
+        uint256 globalBalance = _updateGlobalBalance();
         uint256 userVirtualBalance = updateUserGooBalance(msg.sender, 0, GooBalanceUpdateType.DECREASE);
 
-        uint256 claimableNum;
-        // Since depositors before have already claimed their voltron gobblers,
-        // the last depositor will take all the voltron gobblers
-        if (getUserData[msg.sender].emissionMultiple >= globalData.totalEmissionMultiple) {
-            claimableNum = claimableGobblersNum;
-        } else {
-            // (user's virtual goo / global virtual goo) * total claimable num - claimed num
-            claimableNum =
-                userVirtualBalance.divWadDown(globalBalance).mulWadDown(claimableGobblers.length) - uint256(getUserData[msg.sender].claimedNum);
-        }
-
+        // (user's virtual goo / global virtual goo) * total claimable num - claimed num
+        uint256 claimableNum =
+            userVirtualBalance.divWadDown(globalBalance).mulWadDown(claimableGobblers.length) - uint256(getUserData[msg.sender].claimedNum);
 
         uint256 claimNum = gobblerIds.length;
         require(claimableNum >= claimNum, "CLAIM_TOO_MUCH");
@@ -304,39 +294,33 @@ contract VoltronGobblers is ReentrancyGuard, Owned {
         emit GobblersClaimed(msg.sender, gobblerIds, gobblerIds);
     }
 
-    function claimVoltronGoo() external nonReentrant canClaimGoo {
-        // require all pool gobblers have been claimed
-        require(mintLock, "SHOULD_STOP_MINT");
-        require(claimableGobblersNum == 0, "SHOULD_CLAIM_GOBBLER");
-
-        uint128 claimableGoo = voltronGooData.claimableGoo;
-
-        if (uint256(voltronGooData.lastTimestamp) < block.timestamp) {
-            claimableGoo = uint128(IArtGobblers(artGobblers).gooBalance(address(this)));
-            IArtGobblers(artGobblers).removeGoo(claimableGoo);
-            voltronGooData.lastTimestamp = uint48(block.timestamp);
-        }
-
-        uint256 globalBalance = updateGlobalBalance();
-        uint256 updatedVirtualBalance = updateUserGooBalance(msg.sender, 0, GooBalanceUpdateType.DECREASE);
-
-        uint256 amount;
-        // Since depositors before have already claimed their voltron gobblers,
-        // the last depositor will take all the voltron gobblers
-        if (getUserData[msg.sender].emissionMultiple >= globalData.totalEmissionMultiple) {
-            amount = claimableGoo;
-        } else {
-            // (user's virtual goo / global virtual goo) * total cliamable goo
-            amount = updatedVirtualBalance.divWadDown(globalBalance).mulWadDown(claimableGoo);
-        }        
-        voltronGooData.claimableGoo = uint128(claimableGoo - amount);
-
-        IGOO(goo).transfer(msg.sender, amount);
-
-        emit VoltronGooClaimed(msg.sender, amount);
+    function addGoo(uint256 amount) external nonReentrant {
+        _addGoo(amount);
     }
 
-    function updateGlobalBalance() public returns (uint256) {
+    function _addGoo(uint256 amount) internal {
+        require(getUserData[msg.sender].gobblersOwned > 0, "MUST_DEPOSIT_GOBBLER");
+
+        uint256 poolBalanceBefore = IArtGobblers(artGobblers).gooBalance(address(this));
+        IGOO(goo).transferFrom(msg.sender, address(this), amount);
+        IArtGobblers(artGobblers).addGoo(amount);
+        require(IArtGobblers(artGobblers).gooBalance(address(this)) - poolBalanceBefore >= amount, "ADDGOO_FAILD");
+
+        updateUserGooBalance(msg.sender, amount, GooBalanceUpdateType.INCREASE);
+        getUserData[msg.sender].lastAddGooTimestamp = uint48(block.timestamp);
+        _updateGlobalBalance();
+        globalData.totalVirtualBalance += uint128(amount);
+    }
+
+    /*//////////////////////////////////////////////////////////////
+                            UTILS FUNCTION
+    //////////////////////////////////////////////////////////////*/
+
+    function updateGlobalBalance() external returns (uint256) {
+        return _updateGlobalBalance();
+    }
+
+    function _updateGlobalBalance() internal returns (uint256) {
         uint256 updatedBalance = LibGOO.computeGOOBalance(
             globalData.totalEmissionMultiple,
             globalData.totalVirtualBalance,
@@ -377,6 +361,37 @@ contract VoltronGobblers is ReentrancyGuard, Owned {
         );
     }
 
+    /*//////////////////////////////////////////////////////////////
+                            ADMIN FUNCTION
+    //////////////////////////////////////////////////////////////*/
+
+    // admin claim voltron gobblers and goo remain in pool
+    // Only when all user has withdraw all gobblers
+    function adminClaimGobblersAndGoo(uint256[] calldata gobblerIds) external onlyOwner nonReentrant {
+        _updateGlobalBalance();
+
+        // require all user has withdraw their gobblers
+        require(globalData.totalGobblersOwned == 0, "ADMIN_CANT_CLAIM");
+
+        // goo in gobblers
+        IArtGobblers(artGobblers).removeGoo(IArtGobblers(artGobblers).gooBalance(address(this)));
+
+        uint256 claimableGoo = IGOO(goo).balanceOf(address(this));
+        IGOO(goo).transfer(msg.sender, claimableGoo);
+
+        emit VoltronGooClaimed(msg.sender, claimableGoo);
+
+        // claim gobblers
+        for (uint256 i = 0; i < gobblerIds.length; i++) {
+            uint256 id = gobblerIds[i];
+            require(!gobblersClaimed[id], "GOBBLER_ALREADY_CLAIMED");
+            gobblersClaimed[id] = true;
+            IArtGobblers(artGobblers).transferFrom(address(this), msg.sender, id);
+        }
+
+        emit GobblersClaimed(msg.sender, gobblerIds, gobblerIds);
+    }
+
     function setMintLock(bool isLock) external onlyOwner {
         mintLock = isLock;
     }
@@ -385,7 +400,7 @@ contract VoltronGobblers is ReentrancyGuard, Owned {
         claimGobblerLock = isLock;
     }
 
-    function setClaimGooLock(bool isLock) external onlyOwner {
-        claimGooLock = isLock;
+    function setTimeLockDuration(uint256 timeLockDuration_) external onlyOwner {
+        timeLockDuration = timeLockDuration_;
     }
 }

@@ -48,7 +48,7 @@ contract MockArtGobblers is ArtGobblers {
         uint256 gobblerId;
         for (uint256 i = 0; i < num; i++) {
             unchecked {
-            // Overflow should be impossible due to supply cap of 10,000.
+                // Overflow should be impossible due to supply cap of 10,000.
                 emit GobblerClaimed(msg.sender, gobblerId = ++currentNonLegendaryId);
             }
             gobblerIds[i] = gobblerId;

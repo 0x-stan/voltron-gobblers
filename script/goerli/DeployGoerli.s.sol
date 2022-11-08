@@ -18,7 +18,7 @@ contract DeployGoerliScript is MockArtGobblersDeployHelper {
 
         deployArtGobblers();
 
-        voltron = new VoltronGobblers(msg.sender, address(gobblers), address(goo));
+        voltron = new VoltronGobblers(msg.sender, address(gobblers), address(goo), 1 days);
 
         logDeployedAddresses();
 
