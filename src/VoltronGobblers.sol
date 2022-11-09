@@ -110,8 +110,8 @@ contract VoltronGobblers is ReentrancyGuard, Owned {
         // Timestamp of the last add goo
         uint48 lastAddGooTimestamp;
     }
-    /// @notice Maps user addresses to their account data.
 
+    /// @notice Maps user addresses to their account data.
     mapping(address => UserData) public getUserData;
 
     /*//////////////////////////////////////////////////////////////
@@ -138,6 +138,7 @@ contract VoltronGobblers is ReentrancyGuard, Owned {
 
     GlobalData public globalData;
 
+    /// @notice Maps voltron gobbler Id to if claimed.
     mapping(uint256 => bool) public gobblersClaimed;
     uint256[] public claimableGobblers;
     uint256 public claimableGobblersNum;
@@ -257,12 +258,12 @@ contract VoltronGobblers is ReentrancyGuard, Owned {
 
     function mintVoltronGobblers(uint256 maxPrice, uint256 num) external nonReentrant canMint {
         uint256[] memory gobblerIds = new uint256[](num);
+        claimableGobblersNum += num;
         for (uint256 i = 0; i < num; i++) {
             uint256 gobblerId = IArtGobblers(artGobblers).mintFromGoo(maxPrice, true);
             gobblerIds[i] = gobblerId;
             claimableGobblers.push(gobblerId);
         }
-        claimableGobblersNum += num;
         emit GobblerMinted(num, gobblerIds, gobblerIds);
     }
 
@@ -284,8 +285,9 @@ contract VoltronGobblers is ReentrancyGuard, Owned {
         claimableGobblersNum -= claimNum;
 
         // claim gobblers
+        uint256 id;
         for (uint256 i = 0; i < claimNum; i++) {
-            uint256 id = gobblerIds[i];
+            id = gobblerIds[i];
             require(!gobblersClaimed[id], "GOBBLER_ALREADY_CLAIMED");
             gobblersClaimed[id] = true;
             IArtGobblers(artGobblers).transferFrom(address(this), msg.sender, id);
@@ -382,7 +384,9 @@ contract VoltronGobblers is ReentrancyGuard, Owned {
         emit VoltronGooClaimed(msg.sender, claimableGoo);
 
         // claim gobblers
-        for (uint256 i = 0; i < gobblerIds.length; i++) {
+        uint256 claimNum = gobblerIds.length;
+        claimableGobblersNum -= claimNum;
+        for (uint256 i = 0; i < claimNum; i++) {
             uint256 id = gobblerIds[i];
             require(!gobblersClaimed[id], "GOBBLER_ALREADY_CLAIMED");
             gobblersClaimed[id] = true;
