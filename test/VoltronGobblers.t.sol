@@ -29,6 +29,8 @@ contract VoltronGobblersTest is ArtGobblersDeployHelper {
         vm.warp(block.timestamp + 1 days);
         setRandomnessAndReveal(gobblersNum, "seed");
 
+        (uint32 userGobblersOwnedBefore, uint32 userEmissionMultipleBefore,,,,) = voltron.getUserData(users[0]);
+
         deposit(users[0], gobblerIds);
 
         assertEq(gobblers.balanceOf(address(voltron)), gobblersNum);
@@ -42,11 +44,11 @@ contract VoltronGobblersTest is ArtGobblersDeployHelper {
             sumEmissionMultiple += emissionMultiple;
         }
 
-        uint32 totalGobblersOwned;
-        uint32 totalEmissionMultiple;
-        uint128 totalVirtualBalance;
+        (uint32 userGobblersOwnedAfter, uint32 userEmissionMultipleAfter,,,,) = voltron.getUserData(users[0]);
+        assertEq(userGobblersOwnedBefore + gobblersNum, userGobblersOwnedAfter);
+        assertEq(userEmissionMultipleBefore + sumEmissionMultiple, userEmissionMultipleAfter);
 
-        (totalGobblersOwned, totalEmissionMultiple, totalVirtualBalance,) = voltron.globalData();
+        (uint32 totalGobblersOwned, uint32 totalEmissionMultiple,,) = voltron.globalData();
         assertEq(totalGobblersOwned, gobblersNum);
         assertEq(totalEmissionMultiple, sumEmissionMultiple);
     }
@@ -58,6 +60,8 @@ contract VoltronGobblersTest is ArtGobblersDeployHelper {
         uint256[] memory gobblerIds = mintGobblers(users[0], gobblersNum);
         vm.warp(block.timestamp + 1 days);
         setRandomnessAndReveal(gobblersNum, "seed");
+
+        (uint32 userGobblersOwnedBefore, uint32 userEmissionMultipleBefore,,,,) = voltron.getUserData(users[0]);
 
         depositWithGoo(users[0], gobblerIds, gooAmount);
 
@@ -74,11 +78,11 @@ contract VoltronGobblersTest is ArtGobblersDeployHelper {
             sumEmissionMultiple += emissionMultiple;
         }
 
-        uint32 totalGobblersOwned;
-        uint32 totalEmissionMultiple;
-        uint128 totalVirtualBalance;
+        (uint32 userGobblersOwnedAfter, uint32 userEmissionMultipleAfter,,,,) = voltron.getUserData(users[0]);
+        assertEq(userGobblersOwnedBefore + gobblersNum, userGobblersOwnedAfter);
+        assertEq(userEmissionMultipleBefore + sumEmissionMultiple, userEmissionMultipleAfter);
 
-        (totalGobblersOwned, totalEmissionMultiple, totalVirtualBalance,) = voltron.globalData();
+        (uint32 totalGobblersOwned, uint32 totalEmissionMultiple, uint128 totalVirtualBalance,) = voltron.globalData();
         assertEq(totalGobblersOwned, gobblersNum);
         assertEq(totalEmissionMultiple, sumEmissionMultiple);
         assertEq(totalVirtualBalance, gooAmount);
@@ -160,6 +164,9 @@ contract VoltronGobblersTest is ArtGobblersDeployHelper {
         deposit(users[1], gobblerIds1);
         deposit(users[2], gobblerIds2);
 
+        (uint32 userGobblersOwnedBefore, uint32 userEmissionMultipleBefore,,,,) = voltron.getUserData(users[0]);
+        (uint32 totalGobblersOwnedBefore, uint32 totalEmissionMultipleBefore,,) = voltron.globalData();
+
         vm.warp(block.timestamp + 5 days);
         withraw(users[0], gobblerIds0);
         vm.warp(block.timestamp + 5 days);
@@ -168,16 +175,35 @@ contract VoltronGobblersTest is ArtGobblersDeployHelper {
 
         assertEq(gobblers.balanceOf(address(voltron)), 0);
         assertEq(gobblers.balanceOf(users[0]), gobblersNum);
+
+        uint256 sumEmissionMultiple;
+        uint256 sumUserEmissionMultiple;
+        uint32 emissionMultiple;
         for (uint256 i = 0; i < gobblersNum; i++) {
             assertEq(gobblers.ownerOf(gobblerIds0[i]), users[0]);
             assertEq(voltron.getUserByGobblerId(gobblerIds0[i]), address(0));
+            (,, emissionMultiple) = gobblers.getGobblerData(gobblerIds0[i]);
+            sumEmissionMultiple += emissionMultiple;
+            sumUserEmissionMultiple += emissionMultiple;
 
             assertEq(gobblers.ownerOf(gobblerIds1[i]), users[1]);
             assertEq(voltron.getUserByGobblerId(gobblerIds1[i]), address(0));
+            (,, emissionMultiple) = gobblers.getGobblerData(gobblerIds1[i]);
+            sumEmissionMultiple += emissionMultiple;
 
             assertEq(gobblers.ownerOf(gobblerIds2[i]), users[2]);
             assertEq(voltron.getUserByGobblerId(gobblerIds2[i]), address(0));
+            (,, emissionMultiple) = gobblers.getGobblerData(gobblerIds2[i]);
+            sumEmissionMultiple += emissionMultiple;
         }
+
+        (uint32 userGobblersOwnedAfter, uint32 userEmissionMultipleAfter,,,,) = voltron.getUserData(users[0]);
+        assertEq(userGobblersOwnedBefore - gobblersNum, userGobblersOwnedAfter);
+        assertEq(userEmissionMultipleBefore - sumUserEmissionMultiple, userEmissionMultipleAfter);
+
+        (uint32 totalGobblersOwnedAfter, uint32 totalEmissionMultipleAfter,,) = voltron.globalData();
+        assertEq(totalGobblersOwnedBefore - gobblersNum * 3, totalGobblersOwnedAfter);
+        assertEq(totalEmissionMultipleBefore - sumEmissionMultiple, totalEmissionMultipleAfter);
     }
 
     function testMintVoltronGobblers() public {
@@ -190,10 +216,9 @@ contract VoltronGobblersTest is ArtGobblersDeployHelper {
         vm.warp(block.timestamp + 5 days);
 
         voltron.mintVoltronGobblers(type(uint256).max, 1);
-        assertEq(voltron.claimableGobblersNum(), 1);
 
         uint256 voltronGobblerId = voltron.claimableGobblers(0);
-
+        assertEq(voltron.claimableGobblersNum(), 1);
         assertFalse(voltron.gobblersClaimed(0));
         assertEq(gobblers.ownerOf(voltronGobblerId), address(voltron));
     }
@@ -262,9 +287,9 @@ contract VoltronGobblersTest is ArtGobblersDeployHelper {
         vm.warp(block.timestamp + voltron.timeLockDuration() - 1);
         voltron.mintVoltronGobblers(type(uint256).max, 3);
         assertEq(voltron.claimableGobblersNum(), 3);
-        assertFalse(voltron.gobblersClaimed(goblbersNum0 + goblbersNum1 + 0));
-        assertFalse(voltron.gobblersClaimed(goblbersNum0 + goblbersNum1 + 1));
-        assertFalse(voltron.gobblersClaimed(goblbersNum0 + goblbersNum1 + 2));
+        assertFalse(voltron.gobblersClaimed(voltron.claimableGobblers(0)));
+        assertFalse(voltron.gobblersClaimed(voltron.claimableGobblers(1)));
+        assertFalse(voltron.gobblersClaimed(voltron.claimableGobblers(2)));
 
         uint256[] memory claimIds = new uint256[](1);
         claimIds[0] = voltron.claimableGobblers(0);
