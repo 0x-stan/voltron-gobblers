@@ -504,6 +504,32 @@ contract VoltronGobblersTest is ArtGobblersDeployHelper {
         assertEq(goo.balanceOf(voltron.owner()), voltronGoo);
     }
 
+    function testAdminFunction() public {
+        address admin = voltron.owner();
+
+        vm.expectRevert("UNAUTHORIZED");
+        voltron.setMintLock(true);
+
+        vm.expectRevert("UNAUTHORIZED");
+        voltron.setClaimGobblerLock(true);
+
+        vm.expectRevert("UNAUTHORIZED");
+        voltron.setTimeLockDuration(10 days);
+
+        vm.prank(admin);
+        voltron.setMintLock(true);
+        assertTrue(voltron.mintLock());
+
+        vm.prank(admin);
+        voltron.setClaimGobblerLock(true);
+        assertTrue(voltron.claimGobblerLock());
+
+        vm.prank(admin);
+        voltron.setTimeLockDuration(10 days);
+        assertEq(voltron.timeLockDuration(), 10 days);
+
+    }
+
     /*//////////////////////////////////////////////////////////////
                               Helpers
     //////////////////////////////////////////////////////////////*/
