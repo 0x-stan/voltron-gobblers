@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: MIT
-pragma solidity >=0.8.0;
+pragma solidity ^0.8.10;
 
 interface IArtGobblers {
     event Approval(address indexed owner, address indexed spender, uint256 indexed id);
@@ -10,7 +10,7 @@ interface IArtGobblers {
     event GobblersRevealed(address indexed user, uint256 numGobblers, uint256 lastRevealedId);
     event GooBalanceUpdated(address indexed user, uint256 newGooBalance);
     event LegendaryGobblerMinted(address indexed user, uint256 indexed gobblerId, uint256[] burnedGobblerIds);
-    event OwnerUpdated(address indexed user, address indexed newOwner);
+    event OwnershipTransferred(address indexed user, address indexed newOwner);
     event RandProviderUpgraded(address indexed user, address indexed newRandProvider);
     event RandomnessFulfilled(uint256 randomness);
     event RandomnessRequested(address indexed user, uint256 toBeRevealed);
@@ -25,6 +25,7 @@ interface IArtGobblers {
     function MAX_MINTABLE() external view returns (uint256);
     function MAX_SUPPLY() external view returns (uint256);
     function MINTLIST_SUPPLY() external view returns (uint256);
+    function PROVENANCE_HASH() external view returns (bytes32);
     function RESERVED_SUPPLY() external view returns (uint256);
     function UNREVEALED_URI() external view returns (string memory);
     function acceptRandomSeed(bytes32, uint256 randomness) external;
@@ -51,15 +52,13 @@ interface IArtGobblers {
     function gobblerRevealsData()
         external
         view
-        returns (uint64 randomSeed, uint64 nextRevealTimestamp, uint56 lastRevealedId, uint56 toBeRevealed, bool waitingForSeed);
+        returns (uint64 randomSeed, uint64 nextRevealTimestamp, uint64 lastRevealedId, uint56 toBeRevealed, bool waitingForSeed);
     function goo() external view returns (address);
     function gooBalance(address user) external view returns (uint256);
     function hasClaimedMintlistGobbler(address) external view returns (bool);
     function isApprovedForAll(address, address) external view returns (bool);
     function legendaryGobblerAuctionData() external view returns (uint128 startPrice, uint128 numSold);
     function legendaryGobblerPrice() external view returns (uint256);
-    function logisticLimit() external view returns (int256);
-    function logisticLimitDoubled() external view returns (int256);
     function merkleRoot() external view returns (bytes32);
     function mintFromGoo(uint256 maxPrice, bool useVirtualBalance) external returns (uint256 gobblerId);
     function mintLegendaryGobbler(uint256[] memory gobblerIds) external returns (uint256 gobblerId);
@@ -80,12 +79,12 @@ interface IArtGobblers {
     function safeTransferFrom(address from, address to, uint256 id) external;
     function safeTransferFrom(address from, address to, uint256 id, bytes memory data) external;
     function setApprovalForAll(address operator, bool approved) external;
-    function setOwner(address newOwner) external;
     function supportsInterface(bytes4 interfaceId) external pure returns (bool);
     function symbol() external view returns (string memory);
     function targetPrice() external view returns (int256);
     function team() external view returns (address);
     function tokenURI(uint256 gobblerId) external view returns (string memory);
     function transferFrom(address from, address to, uint256 id) external;
+    function transferOwnership(address newOwner) external;
     function upgradeRandProvider(address newRandProvider) external;
 }
