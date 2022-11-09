@@ -519,15 +519,20 @@ contract VoltronGobblersTest is ArtGobblersDeployHelper {
         vm.prank(admin);
         voltron.setMintLock(true);
         assertTrue(voltron.mintLock());
+        vm.expectRevert("MINT_LOCK");
+        voltron.mintVoltronGobblers(type(uint256).max, 1);
 
         vm.prank(admin);
         voltron.setClaimGobblerLock(true);
         assertTrue(voltron.claimGobblerLock());
+        uint256[] memory claimIds = new uint256[](1);
+        claimIds[0] = 1;
+        vm.expectRevert("CLAIM_GOBBLER_LOCK");
+        voltron.claimVoltronGobblers(claimIds);
 
         vm.prank(admin);
         voltron.setTimeLockDuration(10 days);
         assertEq(voltron.timeLockDuration(), 10 days);
-
     }
 
     /*//////////////////////////////////////////////////////////////
