@@ -19,6 +19,6 @@ library DeploymentHelper {
         cmds[3] = "-r";
         bytes memory result = vm.ffi(cmds);
         addr = address(bytes20(result));
-        console.log("loadDeployAddress", key, addr);
+        // console.log("loadDeployAddress", key, addr);
     }
 }

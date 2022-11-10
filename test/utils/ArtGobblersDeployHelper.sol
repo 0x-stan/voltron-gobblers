@@ -18,6 +18,7 @@ import { ERC721 } from "solmate/tokens/ERC721.sol";
 import { MockERC1155 } from "solmate/test/utils/mocks/MockERC1155.sol";
 import { LibString } from "solmate/utils/LibString.sol";
 import { fromDaysWadUnsafe } from "solmate/utils/SignedWadMath.sol";
+import { DeploymentHelper } from "script/goerli/utils/DeploymentHelper.sol";
 
 /// @notice Unit test for Art Gobbler Contract.
 abstract contract ArtGobblersDeployHelper is DSTestPlus {
@@ -42,13 +43,33 @@ abstract contract ArtGobblersDeployHelper is DSTestPlus {
 
     uint256[] ids;
 
+    address anvilAccount0 = 0xf39Fd6e51aad88F6F4ce6aB8827279cffFb92266;
+
     /*//////////////////////////////////////////////////////////////
                                   SETUP
     //////////////////////////////////////////////////////////////*/
 
     function deployArtGobblers() internal {
+        uint256 chainId;
+        assembly {
+            chainId := chainid()
+        }
+
         utils = new Utilities();
         users = utils.createUsers(5);
+
+        if (chainId == 1) {
+            linkToken = LinkToken(DeploymentHelper.loadDeployAddress(".linkToken"));
+            vrfCoordinator = VRFCoordinatorMock(DeploymentHelper.loadDeployAddress(".vrfCoordinator"));
+            team = GobblerReserve(DeploymentHelper.loadDeployAddress(".team"));
+            community = GobblerReserve(DeploymentHelper.loadDeployAddress(".community"));
+            randProvider = ChainlinkV1RandProvider(DeploymentHelper.loadDeployAddress(".randProvider"));
+            goo = Goo(DeploymentHelper.loadDeployAddress(".goo"));
+            gobblers = ArtGobblers(DeploymentHelper.loadDeployAddress(".gobblers"));
+            pages = Pages(DeploymentHelper.loadDeployAddress(".pages"));
+            return;
+        }
+
         linkToken = new LinkToken();
         vrfCoordinator = new VRFCoordinatorMock(address(linkToken));
 
@@ -93,23 +114,49 @@ abstract contract ArtGobblersDeployHelper is DSTestPlus {
 
     /// @notice Mint a number of gobblers to the given address
     function mintGobblers(address addr, uint256 num) internal returns (uint256[] memory gobblerIds) {
-        gobblerIds = new uint256[](num);
-        for (uint256 i = 0; i < num; i++) {
-            vm.startPrank(address(gobblers));
-            goo.mintForGobblers(addr, gobblers.gobblerPrice());
-            vm.stopPrank();
+        uint256 chainId;
+        assembly {
+            chainId := chainid()
+        }
 
-            vm.prank(addr);
-            gobblerIds[i] = gobblers.mintFromGoo(type(uint256).max, false);
+        gobblerIds = new uint256[](num);
+
+        if (chainId == 1) {
+            uint256 i = 0;
+            for (uint256 id = 1;; id++) {
+                if (gobblers.ownerOf(id) == anvilAccount0) {
+                    gobblerIds[i] = id;
+                    vm.prank(anvilAccount0);
+                    gobblers.transferFrom(anvilAccount0, addr, id);
+                    ++i;
+                }
+                if (i == num) break;
+            }
+        } else {
+            for (uint256 i = 0; i < num; i++) {
+                vm.startPrank(address(gobblers));
+                goo.mintForGobblers(addr, gobblers.gobblerPrice());
+                vm.stopPrank();
+
+                vm.prank(addr);
+                gobblerIds[i] = gobblers.mintFromGoo(type(uint256).max, false);
+            }
         }
     }
 
     /// @notice Call back vrf with randomness and reveal gobblers.
     function setRandomnessAndReveal(uint256 numReveal, string memory seed) internal {
-        bytes32 requestId = gobblers.requestRandomSeed();
-        uint256 randomness = uint256(keccak256(abi.encodePacked(seed)));
-        // call back from coordinator
-        vrfCoordinator.callBackWithRandomness(requestId, randomness, address(randProvider));
-        gobblers.revealGobblers(numReveal);
+        uint256 chainId;
+        assembly {
+            chainId := chainid()
+        }
+
+        if (chainId == 1) { } else {
+            bytes32 requestId = gobblers.requestRandomSeed();
+            uint256 randomness = uint256(keccak256(abi.encodePacked(seed)));
+            // call back from coordinator
+            vrfCoordinator.callBackWithRandomness(requestId, randomness, address(randProvider));
+            gobblers.revealGobblers(numReveal);
+        }
     }
 }
