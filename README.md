@@ -53,7 +53,7 @@ forge test
 fork mainnet test
 
 ```sh
-script/mainnet/bash/1-prepare-gobblers.sh
+test/bash/1-prepare-gobblers.sh
 forge test  -vv -f http://127.0.0.1:8545 --no-match-test Fuzz
 ```
 
