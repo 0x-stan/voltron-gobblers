@@ -238,7 +238,7 @@ contract VoltronGobblersTest is ArtGobblersDeployHelper {
         for (uint256 i = 0; i < gobblersNums.length; i++) {
             gooSum += voltron.gooBalance(users[i]);
         }
-        assertTrue(gooSum == voltron.globalGooBalance());
+        assertEq(gooSum, voltron.globalGooBalance());
 
         gooSum = 0;
         uint256 lastId = gobblers.currentNonLegendaryId();
@@ -247,7 +247,7 @@ contract VoltronGobblersTest is ArtGobblersDeployHelper {
         for (uint256 i = 0; i < gobblersNums.length; i++) {
             gooSum += voltron.gooBalance(users[i]);
         }
-        assertTrue(gooSum == voltron.globalGooBalance());
+        assertEq(gooSum, voltron.globalGooBalance());
         assertEq(voltron.claimableGobblersNum(), 2);
         assertEq(voltron.claimableGobblers(0), lastId + 1);
         assertEq(voltron.claimableGobblers(1), lastId + 2);
@@ -258,7 +258,7 @@ contract VoltronGobblersTest is ArtGobblersDeployHelper {
         for (uint256 i = 0; i < gobblersNums.length; i++) {
             gooSum += voltron.gooBalance(users[i]);
         }
-        assertTrue(gooSum == voltron.globalGooBalance());
+        assertEq(gooSum, voltron.globalGooBalance());
         assertEq(voltron.claimableGobblersNum(), 2 + 3);
         assertEq(voltron.claimableGobblers(2), lastId + 3);
         assertEq(voltron.claimableGobblers(3), lastId + 4);
@@ -464,8 +464,6 @@ contract VoltronGobblersTest is ArtGobblersDeployHelper {
 
         voltron.mintVoltronGobblers(type(uint256).max, 3);
         assertEq(voltron.claimableGobblersNum(), 3);
-
-        voltron.globalGooBalance();
 
         uint256[] memory claimIds = new uint256[](1);
 
