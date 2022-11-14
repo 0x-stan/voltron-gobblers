@@ -289,7 +289,7 @@ contract VoltronGobblersTest is ArtGobblersDeployHelper {
         assertTrue(voltron.gobblerClaimable(voltron.claimableGobblers(2)));
 
         vm.prank(users[0]);
-        vm.expectRevert("NOT_CLAIMABLE_GOBBLER");
+        vm.expectRevert("GOBBLER_NOT_CLAIMABLE");
         voltron.claimVoltronGobblers(gobblerIds1);
         assertEq(voltron.claimableGobblersNum(), 3);
         assertFalse(voltron.gobblerClaimable(gobblerIds1[0]));

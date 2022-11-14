@@ -282,7 +282,7 @@ contract VoltronGobblers is ReentrancyGuard, Owned {
         uint256 id;
         for (uint256 i = 0; i < claimNum; i++) {
             id = gobblerIds[i];
-            require(gobblerClaimable[id], "NOT_CLAIMABLE_GOBBLER");
+            require(gobblerClaimable[id], "GOBBLER_NOT_CLAIMABLE");
             gobblerClaimable[id] = false;
             IArtGobblers(artGobblers).transferFrom(address(this), msg.sender, id);
         }
@@ -376,7 +376,7 @@ contract VoltronGobblers is ReentrancyGuard, Owned {
         claimableGobblersNum -= claimNum;
         for (uint256 i = 0; i < claimNum; i++) {
             uint256 id = gobblerIds[i];
-            require(gobblerClaimable[id], "NOT_CLAIMABLE_GOBBLER");
+            require(gobblerClaimable[id], "GOBBLER_NOT_CLAIMABLE");
             gobblerClaimable[id] = false;
             IArtGobblers(artGobblers).transferFrom(address(this), msg.sender, id);
         }
