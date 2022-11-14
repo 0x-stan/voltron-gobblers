@@ -308,20 +308,24 @@ contract VoltronGobblers is ReentrancyGuard, Owned {
                             UTILS FUNCTION
     //////////////////////////////////////////////////////////////*/
 
-    function updateGlobalBalance() external returns (uint256) {
-        return _updateGlobalBalance(0);
-    }
-
     function _updateGlobalBalance(uint256 gooAmount) internal returns (uint256) {
-        uint256 updatedBalance = LibGOO.computeGOOBalance(
-            globalData.totalEmissionMultiple,
-            globalData.totalVirtualBalance,
-            uint256(toDaysWadUnsafe(block.timestamp - globalData.lastTimestamp))
-        ) + gooAmount;
+        uint256 updatedBalance = globalGooBalance() + gooAmount;
         // update global balance
         globalData.totalVirtualBalance = uint128(updatedBalance);
         globalData.lastTimestamp = uint48(block.timestamp);
         return updatedBalance;
+    }
+
+
+    /// @notice Calculate global virtual goo balance.
+    function globalGooBalance() public view returns (uint256) {
+        // Compute the user's virtual goo balance by leveraging LibGOO.
+        // prettier-ignore
+        return LibGOO.computeGOOBalance(
+            globalData.totalEmissionMultiple,
+            globalData.totalVirtualBalance,
+            uint256(toDaysWadUnsafe(block.timestamp - globalData.lastTimestamp))
+        );
     }
 
     /// @notice Update a user's virtual goo balance.
