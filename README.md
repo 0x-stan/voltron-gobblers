@@ -50,6 +50,13 @@ test
 forge test
 ```
 
+fork mainnet test
+
+```sh
+test/bash/1-prepare-gobblers.sh
+forge test  -vv -f http://127.0.0.1:8545 --no-match-test Fuzz
+```
+
 ## Deploy and Mock Test
 
 Use [mock ArtGobblers](./test/utils/mocks/MockArtGobblers.sol) for test.

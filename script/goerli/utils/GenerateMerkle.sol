@@ -37,8 +37,6 @@ contract GenerateMerkle is Script {
         data = string.concat(data, "}");
         vm.writeFile(path, data);
 
-        
-
         uint256 proofLen = ProofHelper.calcProofLen(whitelist.length);
         bytes32[] memory proof = ProofHelper.readProofs(whitelist[0], proofLen);
         bool verified = merkleTree.verifyProof(root, proof, keccak256(abi.encodePacked(whitelist[0])));
