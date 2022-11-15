@@ -25,7 +25,7 @@ contract DeployMainnetScript is Script {
     function run() public {
         vm.startBroadcast();
 
-        voltron = new VoltronGobblers(ownerAddr, gobblersAddr, gooAddr, 1 days);
+        voltron = new VoltronGobblers(ownerAddr, gobblersAddr, gooAddr, 3 days);
 
         vm.stopBroadcast();
         console.log("Voltron", address(voltron));
