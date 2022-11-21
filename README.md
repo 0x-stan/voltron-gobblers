@@ -31,7 +31,7 @@ Let's Voltron together!
 
 ## How it works
 
-1. Users deposit their gobblers in Voltron.
+1. Users deposit their gobblers and goo in Voltron.
 2. Voltron will record the goo generated for each user, which is called `virtualBalance`.
 3. All the Goo stored in Voltron are used to mint new Gobblers with the `mintVoltronGobblers()` function, which can be called by anyone.
 4. New Gobblers in Voltron can be fairly distributed according to the proportion of the number of user's `virtualBalance`
@@ -95,7 +95,7 @@ click to watch animation
 
 | network | address                                    |
 | ------- | ------------------------------------------ |
-| mainnet | 0x57137e3214fe320A124ab9208F099865EF0900E7 |
+| mainnet | 0x2A2fC41ccD69f33a62b8b735E9cF4474bA48cAE2 |
 | goerli  | 0x6EacAA3cf3835C11cf6c18f31Be282485FaF3CA5 |
 
 ## Disclaimer
