@@ -65,10 +65,7 @@ pragma solidity >=0.8.0;
                                                                                             O   =OO  ,O                                                                          \^ =
                                                                                               ^  ,  ,O                                                                             \=
                                                                                                \   ,
-                                                                                                / =/
-
-
-*/
+                                                                                                / =/*/
 
 import { Owned } from "solmate/auth/Owned.sol";
 import { ReentrancyGuard } from "solmate/utils/ReentrancyGuard.sol";
@@ -77,6 +74,7 @@ import { IGOO } from "src/utils/IGOO.sol";
 import { FixedPointMathLib } from "solmate/utils/FixedPointMathLib.sol";
 import { toWadUnsafe, toDaysWadUnsafe } from "solmate/utils/SignedWadMath.sol";
 import { LibGOO } from "goo-issuance/LibGOO.sol";
+import { IGoober } from "src/utils/IGoober.sol";
 
 contract VoltronGobblers is ReentrancyGuard, Owned {
     using FixedPointMathLib for uint256;
@@ -87,6 +85,7 @@ contract VoltronGobblers is ReentrancyGuard, Owned {
 
     address public immutable artGobblers;
     address public immutable goo;
+    address public goober;
 
     /*//////////////////////////////////////////////////////////////
                                 USER DATA
@@ -176,6 +175,7 @@ contract VoltronGobblers is ReentrancyGuard, Owned {
         artGobblers = artGobblers_;
         goo = goo_;
         timeLockDuration = timeLockDuration_;
+        mintLock = true;
     }
 
     function depositGobblers(uint256[] calldata gobblerIds, uint256 gooAmount) external nonReentrant {
@@ -249,7 +249,7 @@ contract VoltronGobblers is ReentrancyGuard, Owned {
         emit GobblerWithdrawn(msg.sender, gobblerIds, gobblerIds);
     }
 
-    function mintVoltronGobblers(uint256 maxPrice, uint256 num) external nonReentrant canMint {
+    function _mintVoltronGobblers(uint256 maxPrice, uint256 num) internal {
         uint256[] memory gobblerIds = new uint256[](num);
         claimableGobblersNum += num;
         for (uint256 i = 0; i < num; i++) {
@@ -259,6 +259,10 @@ contract VoltronGobblers is ReentrancyGuard, Owned {
             gobblerClaimable[gobblerId] = true;
         }
         emit GobblerMinted(num, gobblerIds, gobblerIds);
+    }
+
+    function mintVoltronGobblers(uint256 maxPrice, uint256 num) external nonReentrant canMint {
+        _mintVoltronGobblers(maxPrice, num);
     }
 
     function claimVoltronGobblers(uint256[] calldata gobblerIds) external nonReentrant canClaimGobbler {
@@ -304,6 +308,32 @@ contract VoltronGobblers is ReentrancyGuard, Owned {
         require(IArtGobblers(artGobblers).gooBalance(address(this)) - poolBalanceBefore >= amount, "ADDGOO_FAILD");
     }
 
+    function swapFromGoober(uint256 deadline, uint256 gooIn, uint256[] memory gobblersOut)
+        external
+        nonReentrant
+        canMint
+        returns (int256 erroneousGoo)
+    {
+        erroneousGoo = _swapFromGoober(deadline, gooIn, gobblersOut);
+    }
+
+    function _swapFromGoober(uint256 deadline, uint256 gooIn, uint256[] memory gobblersOut) internal returns (int256 erroneousGoo) {
+        // can't use pool's gobbler to swap
+        uint256[] memory gobblersIn;
+        erroneousGoo = IGoober(goober).safeSwap(0, deadline, gobblersIn, gooIn, gobblersOut, 0, address(this), "");
+        require(erroneousGoo == 0);
+
+        uint256 num = gobblersOut.length;
+        claimableGobblersNum += num;
+        for (uint256 i = 0; i < num; i++) {
+            uint256 gobblerId = gobblersOut[i];
+            require(IArtGobblers(artGobblers).ownerOf(gobblerId) == address(this));
+            claimableGobblers.push(gobblerId);
+            gobblerClaimable[gobblerId] = true;
+        }
+        emit GobblerMinted(num, gobblersOut, gobblersOut);
+    }
+
     /*//////////////////////////////////////////////////////////////
                             UTILS FUNCTION
     //////////////////////////////////////////////////////////////*/
@@ -315,7 +345,6 @@ contract VoltronGobblers is ReentrancyGuard, Owned {
         globalData.lastTimestamp = uint48(block.timestamp);
         return updatedBalance;
     }
-
 
     /// @notice Calculate global virtual goo balance.
     function globalGooBalance() public view returns (uint256) {
@@ -360,6 +389,19 @@ contract VoltronGobblers is ReentrancyGuard, Owned {
                             ADMIN FUNCTION
     //////////////////////////////////////////////////////////////*/
 
+    function adminMintVoltronGobblers(uint256 maxPrice, uint256 num) external onlyOwner nonReentrant {
+        _mintVoltronGobblers(maxPrice, num);
+    }
+
+    function adminSwapFromGoober(uint256 deadline, uint256 gooIn, uint256[] memory gobblersOut)
+        external
+        onlyOwner
+        nonReentrant
+        returns (int256 erroneousGoo)
+    {
+        erroneousGoo = _swapFromGoober(deadline, gooIn, gobblersOut);
+    }
+
     /// @notice admin claim voltron gobblers and goo remained in pool, only used when all user withdrawn their gobblers
     function adminClaimGobblersAndGoo(uint256[] calldata gobblerIds) external onlyOwner nonReentrant {
         _updateGlobalBalance(0);
@@ -398,5 +440,9 @@ contract VoltronGobblers is ReentrancyGuard, Owned {
 
     function setTimeLockDuration(uint256 timeLockDuration_) external onlyOwner {
         timeLockDuration = timeLockDuration_;
+    }
+
+    function setGoober(address goober_) external onlyOwner {
+        goober = goober_;
     }
 }

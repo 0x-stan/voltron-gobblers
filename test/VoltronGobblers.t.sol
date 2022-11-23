@@ -16,6 +16,8 @@ contract VoltronGobblersTest is ArtGobblersDeployHelper {
         deployArtGobblers();
         vm.warp(block.timestamp + 1 days);
         voltron = new VoltronGobblers(msg.sender, address(gobblers), address(goo), 1 days);
+        vm.prank(voltron.owner());
+        voltron.setMintLock(false);
     }
 
     function testArtGobblersAddr() public {
@@ -345,8 +347,6 @@ contract VoltronGobblersTest is ArtGobblersDeployHelper {
         }
         assertEq(voltron.claimableGobblersNum(), totalMintNum);
 
-
-
         uint256 virtualBalance0 = voltron.gooBalance(users[0]);
         uint256 totalVirtualBalance = voltron.globalGooBalance();
         uint256 claimNum = virtualBalance0.divWadDown(totalVirtualBalance).mulWadDown(totalMintNum);
@@ -514,6 +514,9 @@ contract VoltronGobblersTest is ArtGobblersDeployHelper {
         vm.expectRevert("UNAUTHORIZED");
         voltron.setTimeLockDuration(10 days);
 
+        vm.expectRevert("UNAUTHORIZED");
+        voltron.adminMintVoltronGobblers(type(uint256).max, 1);
+
         vm.prank(admin);
         voltron.setMintLock(true);
         assertTrue(voltron.mintLock());
@@ -531,6 +534,21 @@ contract VoltronGobblersTest is ArtGobblersDeployHelper {
         vm.prank(admin);
         voltron.setTimeLockDuration(10 days);
         assertEq(voltron.timeLockDuration(), 10 days);
+    }
+
+    function testAdminMint() public {
+        address admin = voltron.owner();
+
+        uint256 gobblersNum = 10;
+        uint256[] memory gobblerIds = mintGobblers(users[0], gobblersNum);
+        vm.warp(block.timestamp + 1 days);
+        setRandomnessAndReveal(gobblersNum, "seed");
+        deposit(users[0], gobblerIds);
+
+        vm.warp(block.timestamp + 5 days);
+
+        vm.prank(admin);
+        voltron.adminMintVoltronGobblers(type(uint256).max, 1);
     }
 
     /*//////////////////////////////////////////////////////////////
