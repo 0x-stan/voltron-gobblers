@@ -7,8 +7,8 @@ import "forge-std/console.sol";
 import { MockArtGobblers } from "test/utils/mocks/MockArtGobblers.sol";
 import { RandProvider } from "art-gobblers/utils/rand/RandProvider.sol";
 import { VRFCoordinatorMock } from "chainlink/v0.8/mocks/VRFCoordinatorMock.sol";
-import { ProofHelper } from "./utils/ProofHelper.sol";
-import { DeploymentHelper } from "./utils/DeploymentHelper.sol";
+import { ProofHelper } from "../utils/ProofHelper.sol";
+import { DeploymentHelper } from "../utils/DeploymentHelper.sol";
 
 contract RevealsGobblers is Script {
     MockArtGobblers gobblers;

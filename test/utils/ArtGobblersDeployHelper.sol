@@ -18,7 +18,7 @@ import { ERC721 } from "solmate/tokens/ERC721.sol";
 import { MockERC1155 } from "solmate/test/utils/mocks/MockERC1155.sol";
 import { LibString } from "solmate/utils/LibString.sol";
 import { fromDaysWadUnsafe } from "solmate/utils/SignedWadMath.sol";
-import { DeploymentHelper } from "script/goerli/utils/DeploymentHelper.sol";
+import { DeploymentHelper } from "script/utils/DeploymentHelper.sol";
 import { Goober } from "goobervault/Goober.sol";
 
 /// @notice Unit test for Art Gobbler Contract.
@@ -73,6 +73,7 @@ abstract contract ArtGobblersDeployHelper is DSTestPlus {
             goo = Goo(DeploymentHelper.loadDeployAddress(".goo"));
             gobblers = ArtGobblers(DeploymentHelper.loadDeployAddress(".gobblers"));
             pages = Pages(DeploymentHelper.loadDeployAddress(".pages"));
+            goober = Goober(DeploymentHelper.loadDeployAddress(".goober"));
             return;
         }
 

@@ -3,7 +3,7 @@ pragma solidity ^0.8.13;
 
 import "forge-std/Script.sol";
 import "forge-std/console.sol";
-import { MockArtGobblersDeployHelper } from "./utils/MockArtGobblersDeployHelper.sol";
+import { MockArtGobblersDeployHelper } from "../utils/MockArtGobblersDeployHelper.sol";
 import { VoltronGobblers } from "src/VoltronGobblers.sol";
 
 contract DeployGoerliScript is MockArtGobblersDeployHelper {

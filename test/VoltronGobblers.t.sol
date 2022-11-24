@@ -462,34 +462,46 @@ contract VoltronGobblersTest is ArtGobblersDeployHelper {
 
         deposit(users[0], gobblerIds);
 
-        vm.warp(block.timestamp + 15 days);
+        vm.warp(block.timestamp + 30 days);
         int256 erroneousGoo;
+        uint256 maxGoo;
+        uint256 voltronGooBefore;
+        voltronGooBefore = gobblers.gooBalance(address(voltron));
         uint256[] memory noGobblers = new uint256[](0);
         uint256[] memory gobblersOut = new uint256[](2);
         gobblersOut[0] = gooberIds[0];
         gobblersOut[1] = gooberIds[1];
         erroneousGoo = goober.previewSwap(noGobblers, 1, gobblersOut, 0);
+        maxGoo = uint256(erroneousGoo) + 1;
 
         vm.prank(owner);
         voltron.setMintLock(true);
 
         vm.expectRevert("MINT_LOCK");
-        voltron.swapFromGoober(uint256(erroneousGoo) + 1, gobblersOut);
+        voltron.swapFromGoober(maxGoo, gobblersOut);
 
         vm.prank(owner);
         voltron.setMintLock(false);
 
-        voltron.swapFromGoober(uint256(erroneousGoo) + 1, gobblersOut);
+        voltron.swapFromGoober(maxGoo, gobblersOut);
+        assertEq(gobblers.gooBalance(address(voltron)), voltronGooBefore - maxGoo);
+        assertEq(gobblers.ownerOf(gobblersOut[0]), address(voltron));
+        assertEq(gobblers.ownerOf(gobblersOut[1]), address(voltron));
 
+        voltronGooBefore = gobblers.gooBalance(address(voltron));
         gobblersOut[0] = gooberIds[2];
         gobblersOut[1] = gooberIds[3];
         erroneousGoo = goober.previewSwap(noGobblers, 1, gobblersOut, 0);
+        maxGoo = uint256(erroneousGoo) + 1;
 
         vm.expectRevert("ONLY_MINTER");
-        voltron.swapFromGooberByMinter(noGobblers, uint256(erroneousGoo) + 1, gobblersOut, 0);
+        voltron.swapFromGooberByMinter(noGobblers, maxGoo, gobblersOut, 0);
 
         vm.prank(minterAddr);
-        voltron.swapFromGooberByMinter(noGobblers, uint256(erroneousGoo) + 1, gobblersOut, 0);
+        voltron.swapFromGooberByMinter(noGobblers, maxGoo, gobblersOut, 0);
+        assertEq(gobblers.gooBalance(address(voltron)), voltronGooBefore - maxGoo);
+        assertEq(gobblers.ownerOf(gobblersOut[0]), address(voltron));
+        assertEq(gobblers.ownerOf(gobblersOut[1]), address(voltron));
     }
 
     function testAdminClaimGobblersAndGoo() public {

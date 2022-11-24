@@ -55,6 +55,7 @@ contract DeployMainnetScript is Script {
         data = string.concat(data, "\"goo\":\"", vm.toString(gooAddr), "\",");
         data = string.concat(data, "\"gobblers\":\"", vm.toString(gobblersAddr), "\",");
         data = string.concat(data, "\"pages\":\"", vm.toString(pagesAddr), "\",");
+        data = string.concat(data, "\"goober\":\"", vm.toString(gooberAddr), "\",");
         data = string.concat(data, "\"voltron\":\"", vm.toString(address(voltron)), "\"");
 
         data = string.concat(data, "}");
