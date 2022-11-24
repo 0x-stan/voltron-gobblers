@@ -68,16 +68,18 @@ pragma solidity >=0.8.0;
                                                                                                 / =/*/
 
 import { LibGOO } from "goo-issuance/LibGOO.sol";
-import { Owned } from "solmate/auth/Owned.sol";
-import { ReentrancyGuard } from "solmate/utils/ReentrancyGuard.sol";
 import { FixedPointMathLib } from "solmate/utils/FixedPointMathLib.sol";
-import { toWadUnsafe, toDaysWadUnsafe } from "solmate/utils/SignedWadMath.sol";
+import { toDaysWadUnsafe } from "solmate/utils/SignedWadMath.sol";
 import { OwnableUpgradeable } from "openzeppelin-contracts-upgradeable/access/OwnableUpgradeable.sol";
-import { IArtGobblers } from "src/utils/IArtGobblers.sol";
-import { IGOO } from "src/utils/IGOO.sol";
-import { IGoober } from "goobervault/interfaces/IGoober.sol";
+import { ReentrancyGuardUpgradeable } from "openzeppelin-contracts-upgradeable/security/ReentrancyGuardUpgradeable.sol";
 
-contract VoltronGobblers is ReentrancyGuard, OwnableUpgradeable {
+import { VoltronGobblerStorageV1 } from "./VoltronGobblerStorage.sol";
+
+import { IGoober } from "goobervault/interfaces/IGoober.sol";
+import { IArtGobblers } from "./utils/IArtGobblers.sol";
+import { IGOO } from "./utils/IGOO.sol";
+
+contract VoltronGobblers is ReentrancyGuardUpgradeable, OwnableUpgradeable, VoltronGobblerStorageV1 {
     using FixedPointMathLib for uint256;
 
     /*//////////////////////////////////////////////////////////////
@@ -89,76 +91,6 @@ contract VoltronGobblers is ReentrancyGuard, OwnableUpgradeable {
     /// @notice 7.3294 = weighted avg. multiplier from mint probabilities,
     /// @notice derived from: ((6*3057) + (7*2621) + (8*2293) + (9*2029)) / 10000.
     uint32 private constant AVERAGE_MULT_BPS = 73294;
-
-    /*//////////////////////////////////////////////////////////////
-                                ADDRESSES
-    //////////////////////////////////////////////////////////////*/
-
-    address public artGobblers;
-    address public goo;
-    address public goober;
-
-    /*//////////////////////////////////////////////////////////////
-                                USER DATA
-    //////////////////////////////////////////////////////////////*/
-
-    // gobblerId => user
-    mapping(uint256 => address) public getUserByGobblerId;
-
-    /// @notice Struct holding data relevant to each user's account.
-    struct UserData {
-        // The total number of gobblers currently owned by the user.
-        uint32 gobblersOwned;
-        // The sum of the multiples of all gobblers the user holds.
-        uint32 emissionMultiple;
-        // User's goo balance at time of last checkpointing.
-        uint128 virtualBalance;
-        // claimed pool's gobbler number
-        uint16 claimedNum;
-        // Timestamp of the last goo balance checkpoint.
-        uint48 lastTimestamp;
-        // Timestamp of the last goo deposit.
-        uint48 lastGooDepositedTimestamp;
-    }
-
-    /// @notice Maps user addresses to their account data.
-    mapping(address => UserData) public getUserData;
-
-    /*//////////////////////////////////////////////////////////////
-                                POOL DATA
-    //////////////////////////////////////////////////////////////*/
-
-    struct GlobalData {
-        // The total number of gobblers currently deposited by the user.
-        uint32 totalGobblersDeposited;
-        // The sum of the multiples of all gobblers the user holds.
-        uint32 totalEmissionMultiple;
-        // User's goo balance at time of last checkpointing.
-        uint128 totalVirtualBalance;
-        // Timestamp of the last goo balance checkpoint.
-        uint48 lastTimestamp;
-    }
-
-    GlobalData public globalData;
-
-    /// @notice Maps gobbler IDs to claimable
-    mapping(uint256 => bool) public gobblerClaimable;
-    uint256[] public claimableGobblers;
-    uint256 public claimableGobblersNum;
-
-    /*//////////////////////////////////////////////////////////////
-                                admin
-    //////////////////////////////////////////////////////////////*/
-
-    bool public mintLock;
-    bool public claimGobblerLock;
-
-    // must stake timeLockDuration time to withdraw
-    // Avoid directly claiming the cheaper gobbler after the user deposits goo
-    uint256 public timeLockDuration;
-
-    // a privileged address with the ability to mint gobblers
-    address public minter;
 
     /*//////////////////////////////////////////////////////////////
                                 EVENTS
@@ -194,6 +126,7 @@ contract VoltronGobblers is ReentrancyGuard, OwnableUpgradeable {
         public
         initializer
     {
+        __ReentrancyGuard_init();
         __Ownable_init();
         transferOwnership(admin_);
         minter = minter_;

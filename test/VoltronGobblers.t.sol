@@ -598,9 +598,7 @@ contract VoltronGobblersTest is ArtGobblersDeployHelper {
         voltron.mintGobblersByMinter(type(uint256).max, 1);
     }
 
-    function testAdminMint() public {
-        address admin = voltron.owner();
-
+    function testMintByMinter() public {
         uint256 gobblersNum = 10;
         uint256[] memory gobblerIds = mintGobblers(users[0], gobblersNum);
         vm.warp(block.timestamp + 1 days);

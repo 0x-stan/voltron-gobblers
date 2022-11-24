@@ -1,12 +1,11 @@
 // SPDX-License-Identifier: UNLICENSED
 pragma solidity ^0.8.13;
 
-import { console } from "forge-std/console.sol";
-
-import { VoltronGobblers } from "src/VoltronGobblers.sol";
-import { ArtGobblers, FixedPointMathLib } from "art-gobblers/ArtGobblers.sol";
-import { ArtGobblersDeployHelper } from "./utils/ArtGobblersDeployHelper.sol";
 import { ProxyAdmin } from "openzeppelin-contracts/proxy/transparent/ProxyAdmin.sol";
+import { ArtGobblers, FixedPointMathLib } from "art-gobblers/ArtGobblers.sol";
+
+import { VoltronGobblers } from "../src/VoltronGobblers.sol";
+import { ArtGobblersDeployHelper } from "./utils/ArtGobblersDeployHelper.sol";
 import { TransparentUpgradeableProxy } from "openzeppelin-contracts/proxy/transparent/TransparentUpgradeableProxy.sol";
 
 contract UpgradeableProxyTest is ArtGobblersDeployHelper {
@@ -30,7 +29,7 @@ contract UpgradeableProxyTest is ArtGobblersDeployHelper {
         proxyAdmin.transferOwnership(ownerAddr);
         proxy = new TransparentUpgradeableProxy(address(voltron), address(proxyAdmin), "");
         voltronProxy = VoltronGobblers(address(proxy));
-        
+
         voltronProxy.initialize(ownerAddr, minterAddr, address(gobblers), address(goo), address(goober), 3 days);
     }
 
@@ -40,7 +39,7 @@ contract UpgradeableProxyTest is ArtGobblersDeployHelper {
 
         vm.prank(ownerAddr);
         proxyAdmin.upgrade(proxy, newVoltronAddr);
-        
+
         assertEq(proxyAdmin.getProxyImplementation(proxy), newVoltronAddr);
         assertTrue(oldVoltronAddr != newVoltronAddr);
     }
