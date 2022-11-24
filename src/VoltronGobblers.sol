@@ -389,6 +389,7 @@ contract VoltronGobblers is ReentrancyGuard, OwnableUpgradeable {
         for (uint256 i = 0; i < num; i++) {
             uint256 id = gobblersIn[i];
             (,, uint256 emissionMultiple) = IArtGobblers(artGobblers).getGobblerData(id);
+            require(emissionMultiple > 0, "UNREVEALED_GOBBLER");
             deltaEmissionMultiple += emissionMultiple;
         }
         uint256 avgSellPricePerMult = gooReceived.mulWadDown(BPS_SCALAR).divWadDown(deltaEmissionMultiple);
