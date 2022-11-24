@@ -81,6 +81,16 @@ contract VoltronGobblers is ReentrancyGuard, OwnableUpgradeable {
     using FixedPointMathLib for uint256;
 
     /*//////////////////////////////////////////////////////////////
+                                CONSTANT
+    //////////////////////////////////////////////////////////////*/
+    /// @notice A scalar for scaling up and down to basis points.
+    uint16 private constant BPS_SCALAR = 1e4;
+    /// @notice The average multiplier of a newly minted gobbler.
+    /// @notice 7.3294 = weighted avg. multiplier from mint probabilities,
+    /// @notice derived from: ((6*3057) + (7*2621) + (8*2293) + (9*2029)) / 10000.
+    uint32 private constant AVERAGE_MULT_BPS = 73294;
+
+    /*//////////////////////////////////////////////////////////////
                                 ADDRESSES
     //////////////////////////////////////////////////////////////*/
 
@@ -325,33 +335,75 @@ contract VoltronGobblers is ReentrancyGuard, OwnableUpgradeable {
     }
 
     function swapFromGoober(uint256 maxGooIn, uint256[] memory gobblersOut) external nonReentrant canMint {
-        // can't use pool's gobbler to swap
         uint256[] memory gobblersIn;
-        int256 erroneousGoo = _swapFromGoober(gobblersIn, maxGooIn, gobblersOut, 0);
-        // only use goo swap for gobblers
-        require(erroneousGoo <= 0, "Price too high");
+        _swapFromGoober(gobblersIn, maxGooIn, gobblersOut, 0);
     }
 
-    function _swapFromGoober(uint256[] memory gobblersIn, uint256 maxGooIn, uint256[] memory gobblersOut, uint256 gooOut)
-        internal
-        returns (int256 erroneousGoo)
-    {
-        erroneousGoo = IGoober(goober).previewSwap(gobblersIn, maxGooIn, gobblersOut, gooOut);
+    function _swapFromGoober(uint256[] memory gobblersIn, uint256 maxGooIn, uint256[] memory gobblersOut, uint256 gooOut) internal {
+        int256 erroneousGoo = IGoober(goober).previewSwap(gobblersIn, maxGooIn, gobblersOut, gooOut);
+        require(erroneousGoo <= 0, "MAX_GOO_IN_EXCEEDED");
 
         uint256 gooIn = maxGooIn - uint256(-erroneousGoo);
         IArtGobblers(artGobblers).removeGoo(gooIn);
         IGOO(goo).approve(goober, gooIn);
-        erroneousGoo = IGoober(goober).swap(gobblersIn, gooIn, gobblersOut, gooOut, address(this), "");
+
+        for (uint256 i = 0; i < gobblersIn.length; i++) {
+            uint256 id = gobblersIn[i];
+            require(gobblerClaimable[id], "CAN_NOT_SAWP_UNCLAIMABLE_GOBBLER");
+            IArtGobblers(artGobblers).approve(goober, id);
+            gobblerClaimable[id] = false;
+        }
+        IGoober(goober).swap(gobblersIn, gooIn, gobblersOut, gooOut, address(this), "");
+
+        if (gooOut > 0) {
+            uint256 _gooBalance = IGOO(goo).balanceOf(address(this));
+            // check GOO received in case of misbehaviour of goober
+            require(_gooBalance >= gooOut);
+            // add all GOOs into tank
+            IArtGobblers(artGobblers).addGoo(_gooBalance);
+        }
 
         uint256 num = gobblersOut.length;
         claimableGobblersNum += num;
         for (uint256 i = 0; i < num; i++) {
-            uint256 gobblerId = gobblersOut[i];
-            require(IArtGobblers(artGobblers).ownerOf(gobblerId) == address(this));
-            claimableGobblers.push(gobblerId);
-            gobblerClaimable[gobblerId] = true;
+            uint256 id = gobblersOut[i];
+            require(IArtGobblers(artGobblers).ownerOf(id) == address(this));
+            claimableGobblers.push(id);
+            gobblerClaimable[id] = true;
         }
         emit GobblerMinted(num, gobblersOut, gobblersOut);
+    }
+
+    /// @notice Arbitrage between `goober` market and mint auction
+    /// Used when sell price on `goober` is higher than mint price on the auction
+    /// @param gobblersIn The gobbler IDs to sell to `goober` market, can only use unclaimed gobblers
+    function arbitrageFromGoober(uint256[] memory gobblersIn) external nonReentrant {
+        uint256[] memory gobblersOut;
+        // simulate swap to get how much GOO we can received for this swap
+        int256 erroneousGoo = IGoober(goober).previewSwap(gobblersIn, 0, gobblersOut, 0);
+        require(erroneousGoo < 0, "GOOBER_NOT_PAYING_ANY_GOO");
+        uint256 gooReceived = uint256(-erroneousGoo);
+
+        uint256 num = gobblersIn.length;
+        uint256 deltaEmissionMultiple;
+        for (uint256 i = 0; i < num; i++) {
+            uint256 id = gobblersIn[i];
+            (,, uint256 emissionMultiple) = IArtGobblers(artGobblers).getGobblerData(id);
+            deltaEmissionMultiple += emissionMultiple;
+        }
+        uint256 avgSellPricePerMult = gooReceived.mulWadDown(BPS_SCALAR).divWadDown(deltaEmissionMultiple);
+        uint256 gooBalanceBefore = IArtGobblers(artGobblers).gooBalance(address(this));
+
+        _swapFromGoober(gobblersIn, 0, gobblersOut, gooReceived);
+        _mintGobblers(type(uint256).max, num);
+
+        uint256 gooBalanceAfter = IArtGobblers(artGobblers).gooBalance(address(this));
+        require(gooBalanceAfter > gooBalanceBefore, "GOO_REDUCED");
+
+        uint256 gooConsumedForMinting = gooBalanceBefore + gooReceived - gooBalanceAfter;
+        // use 7.3 as expected multiplier of newly minted gobbler to calc mint price per multiplier
+        uint256 avgMintPricePerMult = gooConsumedForMinting.mulWadDown(BPS_SCALAR).divWadDown(AVERAGE_MULT_BPS);
+        require(avgSellPricePerMult > avgMintPricePerMult, "MINT_PRICE_GRATER_THAN_SELL_PRICE");
     }
 
     /*//////////////////////////////////////////////////////////////
@@ -413,12 +465,9 @@ contract VoltronGobblers is ReentrancyGuard, OwnableUpgradeable {
         _mintGobblers(maxPrice, num);
     }
 
-    function swapFromGooberByMinter(uint256[] memory gobblersIn, uint256 maxGooIn, uint256[] memory gobblersOut, uint256 gooOut)
-        external
-        onlyMinter
-        nonReentrant
-    {
-        _swapFromGoober(gobblersIn, maxGooIn, gobblersOut, gooOut);
+    function swapFromGooberByMinter(uint256 maxGooIn, uint256[] memory gobblersOut, uint256 gooOut) external onlyMinter nonReentrant {
+        uint256[] memory gobblersIn;
+        _swapFromGoober(gobblersIn, maxGooIn, gobblersOut, 0);
     }
 
     /// @notice admin claim gobblers and goo remained in pool, only used when all user withdrawn their gobblers
