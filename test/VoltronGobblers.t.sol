@@ -495,10 +495,10 @@ contract VoltronGobblersTest is ArtGobblersDeployHelper {
         maxGoo = uint256(erroneousGoo) + 1;
 
         vm.expectRevert("ONLY_MINTER");
-        voltron.swapFromGooberByMinter(noGobblers, maxGoo, gobblersOut, 0);
+        voltron.swapFromGooberByMinter(maxGoo, gobblersOut);
 
         vm.prank(minterAddr);
-        voltron.swapFromGooberByMinter(noGobblers, maxGoo, gobblersOut, 0);
+        voltron.swapFromGooberByMinter(maxGoo, gobblersOut);
         assertEq(gobblers.gooBalance(address(voltron)), voltronGooBefore - maxGoo);
         assertEq(gobblers.ownerOf(gobblersOut[0]), address(voltron));
         assertEq(gobblers.ownerOf(gobblersOut[1]), address(voltron));
