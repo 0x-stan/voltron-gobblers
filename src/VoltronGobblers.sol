@@ -279,10 +279,10 @@ contract VoltronGobblers is ReentrancyGuard, OwnableUpgradeable {
         uint256[] memory gobblerIds = new uint256[](num);
         claimableGobblersNum += num;
         for (uint256 i = 0; i < num; i++) {
-            uint256 gobblerId = IArtGobblers(artGobblers).mintFromGoo(maxPrice, true);
-            gobblerIds[i] = gobblerId;
-            claimableGobblers.push(gobblerId);
-            gobblerClaimable[gobblerId] = true;
+            uint256 id = IArtGobblers(artGobblers).mintFromGoo(maxPrice, true);
+            gobblerIds[i] = id;
+            claimableGobblers.push(id);
+            gobblerClaimable[id] = true;
         }
         emit GobblerMinted(num, gobblerIds, gobblerIds);
     }
@@ -349,7 +349,7 @@ contract VoltronGobblers is ReentrancyGuard, OwnableUpgradeable {
 
         for (uint256 i = 0; i < gobblersIn.length; i++) {
             uint256 id = gobblersIn[i];
-            require(gobblerClaimable[id], "CAN_NOT_SAWP_UNCLAIMABLE_GOBBLER");
+            require(gobblerClaimable[id], "CAN_NOT_SWAP_UNCLAIMABLE_GOBBLER");
             IArtGobblers(artGobblers).approve(goober, id);
             gobblerClaimable[id] = false;
         }
@@ -466,7 +466,7 @@ contract VoltronGobblers is ReentrancyGuard, OwnableUpgradeable {
         _mintGobblers(maxPrice, num);
     }
 
-    function swapFromGooberByMinter(uint256 maxGooIn, uint256[] memory gobblersOut, uint256 gooOut) external onlyMinter nonReentrant {
+    function swapFromGooberByMinter(uint256 maxGooIn, uint256[] memory gobblersOut) external onlyMinter nonReentrant {
         uint256[] memory gobblersIn;
         _swapFromGoober(gobblersIn, maxGooIn, gobblersOut, 0);
     }
