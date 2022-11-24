@@ -7,6 +7,9 @@ import { MockArtGobblersDeployHelper } from "./utils/MockArtGobblersDeployHelper
 import { VoltronGobblers } from "src/VoltronGobblers.sol";
 
 contract DeployGoerliScript is MockArtGobblersDeployHelper {
+    address public immutable ownerAddr = 0xF57C58400732E5693D9967bf4c1138095762d8f5;
+    address public immutable minterAddr = 0x47f8f7AdD6bBaFDd0C28782B5912dB1b9A37bDcf;
+
     VoltronGobblers voltron;
 
     function setUp() public override {
@@ -18,7 +21,8 @@ contract DeployGoerliScript is MockArtGobblersDeployHelper {
 
         deployArtGobblers();
 
-        voltron = new VoltronGobblers(msg.sender, address(gobblers), address(goo), 1 days);
+        voltron = new VoltronGobblers();
+        voltron.initialize(ownerAddr, minterAddr, address(gobblers), address(goo), address(goober), 3 days);
 
         logDeployedAddresses();
 

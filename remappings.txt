@@ -6,5 +6,6 @@ forge-std/=lib/forge-std/src/
 goo-issuance/=lib/art-gobblers/lib/goo-issuance/src/
 murky/=lib/murky/src/
 openzeppelin-contracts-upgradeable/=lib/openzeppelin-contracts-upgradeable/contracts/
-openzeppelin-contracts/=lib/murky/lib/openzeppelin-contracts/
+openzeppelin-contracts/=lib/openzeppelin-contracts/contracts/
 solmate/=lib/solmate/src/
+goobervault/=lib/goobervault/src/
