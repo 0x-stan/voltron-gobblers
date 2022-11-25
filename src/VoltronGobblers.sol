@@ -330,7 +330,7 @@ contract VoltronGobblers is ReentrancyGuardUpgradeable, OwnableUpgradeable, Volt
     /// @notice Arbitrage between `goober` market and mint auction
     /// Used when sell price on `goober` is higher than mint price on the auction
     /// @param gobblersIn The gobbler IDs to sell to `goober` market, can only use unclaimed gobblers
-    function arbitrageFromGoober(uint256[] memory gobblersIn) external nonReentrant returns (uint256[] memory gobblerIds) {
+    function arbitrageFromGoober(uint256[] memory gobblersIn) external nonReentrant returns (uint256[] memory newGobblerIds) {
         uint256[] memory gobblersOut;
         // simulate swap to get how much GOO we can received for this swap
         int256 erroneousGoo = IGoober(goober).previewSwap(gobblersIn, 0, gobblersOut, 0);
@@ -350,7 +350,7 @@ contract VoltronGobblers is ReentrancyGuardUpgradeable, OwnableUpgradeable, Volt
         uint256 gooBalanceBefore = IArtGobblers(artGobblers).gooBalance(address(this));
 
         _swapFromGoober(gobblersIn, 0, gobblersOut, gooReceived);
-        gobblerIds = _mintGobblers(type(uint256).max, num);
+        newGobblerIds = _mintGobblers(type(uint256).max, num);
 
         uint256 gooBalanceAfter = IArtGobblers(artGobblers).gooBalance(address(this));
         require(gooBalanceAfter > gooBalanceBefore, "GOO_REDUCED");
@@ -359,7 +359,7 @@ contract VoltronGobblers is ReentrancyGuardUpgradeable, OwnableUpgradeable, Volt
         // use 7.3 as expected multiplier of newly minted gobbler to calc mint price per multiplier
         uint256 avgMintPricePerMult = gooConsumedForMinting.mulWadDown(BPS_SCALAR).divWadDown(AVERAGE_MULT_BPS * num);
         require(avgSellPricePerMult > avgMintPricePerMult, "MINT_PRICE_GRATER_THAN_SELL_PRICE");
-        return gobblerIds;
+        return newGobblerIds;
     }
 
     /*//////////////////////////////////////////////////////////////
