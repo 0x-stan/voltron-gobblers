@@ -208,20 +208,41 @@ contract VoltronGobblers is ReentrancyGuardUpgradeable, OwnableUpgradeable, Volt
         emit GobblerWithdrawn(msg.sender, gobblerIds, gobblerIds);
     }
 
-    function _mintGobblers(uint256 maxPrice, uint256 num) internal {
-        uint256[] memory gobblerIds = new uint256[](num);
+    function _mintGobblers(uint256 maxPrice, uint256 num) internal returns (uint256[] memory gobblerIds) {
+        gobblerIds = new uint256[](num);
         claimableGobblersNum += num;
         for (uint256 i = 0; i < num; i++) {
             uint256 id = IArtGobblers(artGobblers).mintFromGoo(maxPrice, true);
             gobblerIds[i] = id;
-            claimableGobblers.push(id);
-            gobblerClaimable[id] = true;
+            _addClaimableGobbler(id);
         }
         emit GobblerMinted(num, gobblerIds, gobblerIds);
+        return gobblerIds;
     }
 
-    function mintGobblers(uint256 maxPrice, uint256 num) external nonReentrant canMint {
-        _mintGobblers(maxPrice, num);
+    function _addClaimableGobbler(uint256 id) internal {
+        claimableGobblers.push(id);
+        gobblerClaimable[id] = true;
+    }
+
+    function _removeClaimableGobbler(uint256 id) internal {
+        uint256 len = claimableGobblers.length;
+        for (uint256 idx = 0; idx < len; idx++) {
+            if (claimableGobblers[idx] == id) {
+                // found the existing gobbler ID
+                // remove it from the array efficiently by re-ordering and deleting the last element
+                if (idx != len - 1) {
+                    claimableGobblers[idx] = claimableGobblers[len - 1];
+                }
+                claimableGobblers.pop();
+                delete gobblerClaimable[id];
+                break;
+            }
+        }
+    }
+
+    function mintGobblers(uint256 maxPrice, uint256 num) external nonReentrant canMint returns (uint256[] memory) {
+        return _mintGobblers(maxPrice, num);
     }
 
     function claimGobblers(uint256[] calldata gobblerIds) external nonReentrant canClaimGobbler {
@@ -284,7 +305,7 @@ contract VoltronGobblers is ReentrancyGuardUpgradeable, OwnableUpgradeable, Volt
             uint256 id = gobblersIn[i];
             require(gobblerClaimable[id], "CAN_NOT_SWAP_UNCLAIMABLE_GOBBLER");
             IArtGobblers(artGobblers).approve(goober, id);
-            gobblerClaimable[id] = false;
+            _removeClaimableGobbler(id);
         }
         IGoober(goober).swap(gobblersIn, gooIn, gobblersOut, gooOut, address(this), "");
 
@@ -301,8 +322,7 @@ contract VoltronGobblers is ReentrancyGuardUpgradeable, OwnableUpgradeable, Volt
         for (uint256 i = 0; i < num; i++) {
             uint256 id = gobblersOut[i];
             require(IArtGobblers(artGobblers).ownerOf(id) == address(this));
-            claimableGobblers.push(id);
-            gobblerClaimable[id] = true;
+            _addClaimableGobbler(id);
         }
         emit GobblerMinted(num, gobblersOut, gobblersOut);
     }
@@ -310,7 +330,7 @@ contract VoltronGobblers is ReentrancyGuardUpgradeable, OwnableUpgradeable, Volt
     /// @notice Arbitrage between `goober` market and mint auction
     /// Used when sell price on `goober` is higher than mint price on the auction
     /// @param gobblersIn The gobbler IDs to sell to `goober` market, can only use unclaimed gobblers
-    function arbitrageFromGoober(uint256[] memory gobblersIn) external nonReentrant {
+    function arbitrageFromGoober(uint256[] memory gobblersIn) external nonReentrant returns (uint256[] memory gobblerIds) {
         uint256[] memory gobblersOut;
         // simulate swap to get how much GOO we can received for this swap
         int256 erroneousGoo = IGoober(goober).previewSwap(gobblersIn, 0, gobblersOut, 0);
@@ -325,19 +345,21 @@ contract VoltronGobblers is ReentrancyGuardUpgradeable, OwnableUpgradeable, Volt
             require(emissionMultiple > 0, "UNREVEALED_GOBBLER");
             deltaEmissionMultiple += emissionMultiple;
         }
-        uint256 avgSellPricePerMult = gooReceived.mulWadDown(BPS_SCALAR).divWadDown(deltaEmissionMultiple);
+        // no need to use scaler here since GOO is a 18 decimals token
+        uint256 avgSellPricePerMult = gooReceived.divWadDown(deltaEmissionMultiple);
         uint256 gooBalanceBefore = IArtGobblers(artGobblers).gooBalance(address(this));
 
         _swapFromGoober(gobblersIn, 0, gobblersOut, gooReceived);
-        _mintGobblers(type(uint256).max, num);
+        gobblerIds = _mintGobblers(type(uint256).max, num);
 
         uint256 gooBalanceAfter = IArtGobblers(artGobblers).gooBalance(address(this));
         require(gooBalanceAfter > gooBalanceBefore, "GOO_REDUCED");
 
         uint256 gooConsumedForMinting = gooBalanceBefore + gooReceived - gooBalanceAfter;
         // use 7.3 as expected multiplier of newly minted gobbler to calc mint price per multiplier
-        uint256 avgMintPricePerMult = gooConsumedForMinting.mulWadDown(BPS_SCALAR).divWadDown(AVERAGE_MULT_BPS);
+        uint256 avgMintPricePerMult = gooConsumedForMinting.mulWadDown(BPS_SCALAR).divWadDown(AVERAGE_MULT_BPS * num);
         require(avgSellPricePerMult > avgMintPricePerMult, "MINT_PRICE_GRATER_THAN_SELL_PRICE");
+        return gobblerIds;
     }
 
     /*//////////////////////////////////////////////////////////////
@@ -395,8 +417,8 @@ contract VoltronGobblers is ReentrancyGuardUpgradeable, OwnableUpgradeable, Volt
                             ADMIN FUNCTION
     //////////////////////////////////////////////////////////////*/
 
-    function mintGobblersByMinter(uint256 maxPrice, uint256 num) external onlyMinter nonReentrant {
-        _mintGobblers(maxPrice, num);
+    function mintGobblersByMinter(uint256 maxPrice, uint256 num) external onlyMinter nonReentrant returns (uint256[] memory) {
+        return _mintGobblers(maxPrice, num);
     }
 
     function swapFromGooberByMinter(uint256 maxGooIn, uint256[] memory gobblersOut) external onlyMinter nonReentrant {

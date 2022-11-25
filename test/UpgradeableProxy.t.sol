@@ -43,5 +43,4 @@ contract UpgradeableProxyTest is ArtGobblersDeployHelper {
         assertEq(proxyAdmin.getProxyImplementation(proxy), newVoltronAddr);
         assertTrue(oldVoltronAddr != newVoltronAddr);
     }
-
 }
