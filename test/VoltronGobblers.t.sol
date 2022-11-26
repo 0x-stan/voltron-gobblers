@@ -458,7 +458,7 @@ contract VoltronGobblersTest is ArtGobblersDeployHelper {
         uint256[] memory gobblerIds = mintGobblers(users[0], gobblersNum);
         vm.warp(block.timestamp + 1 days);
         setRandomnessAndReveal(gobblersNum, "seed");
-        uint256[] memory gooberIds = prepareGoober(10, 690e18);
+        uint256[] memory gooberIds = prepareGoober(10, 690 ether);
 
         deposit(users[0], gobblerIds);
 
@@ -598,9 +598,7 @@ contract VoltronGobblersTest is ArtGobblersDeployHelper {
         voltron.mintGobblersByMinter(type(uint256).max, 1);
     }
 
-    function testAdminMint() public {
-        address admin = voltron.owner();
-
+    function testMintByMinter() public {
         uint256 gobblersNum = 10;
         uint256[] memory gobblerIds = mintGobblers(users[0], gobblersNum);
         vm.warp(block.timestamp + 1 days);
@@ -611,6 +609,49 @@ contract VoltronGobblersTest is ArtGobblersDeployHelper {
 
         vm.prank(minterAddr);
         voltron.mintGobblersByMinter(type(uint256).max, 1);
+    }
+
+    function testArbitrageFromGoober() public {
+        address owner = voltron.owner();
+        uint256 gobblersNum = 300;
+        uint256[] memory gobblerIds = mintGobblers(users[0], gobblersNum);
+        vm.warp(block.timestamp + 1 days);
+        setRandomnessAndReveal(gobblersNum, "seed");
+        uint256[] memory gooberGobblerIds = prepareGoober(3, 1 ether);
+
+        deposit(users[0], gobblerIds);
+        vm.warp(block.timestamp + 30 days);
+
+        vm.prank(minterAddr);
+        uint256[] memory mintedGobblerIds = voltron.mintGobblersByMinter(type(uint256).max, 1);
+        setRandomnessAndReveal(1, "seed");
+
+        // no profit for arbitrage
+        uint256[] memory noGobblers = new uint256[](0);
+        int256 erroneousGoo = goober.previewSwap(mintedGobblerIds, 0, noGobblers, 0);
+        assertTrue(erroneousGoo < 0);
+        uint256 mintPrice = gobblers.gobblerPrice();
+        assertTrue(mintPrice > uint256(-erroneousGoo));
+
+        vm.expectRevert("GOO_REDUCED");
+        voltron.arbitrageFromGoober(mintedGobblerIds);
+
+        // profitable
+        uint256 gooBalanceBefore = gobblers.gooBalance(address(voltron));
+        prepareGoober(0, 6000 ether);
+        erroneousGoo = goober.previewSwap(mintedGobblerIds, 0, noGobblers, 0);
+        assertTrue(erroneousGoo < 0);
+        mintPrice = gobblers.gobblerPrice();
+        assertTrue(mintPrice < uint256(-erroneousGoo));
+
+        voltron.arbitrageFromGoober(mintedGobblerIds);
+        uint256 gooBalanceAfter = gobblers.gooBalance(address(voltron));
+        assertTrue(gooBalanceAfter > gooBalanceBefore);
+        uint256 newMintedGobblerId = voltron.claimableGobblers(0);
+        assertTrue(newMintedGobblerId != mintedGobblerIds[0]);
+
+        assertTrue(voltron.gobblerClaimable(newMintedGobblerId));
+        assertFalse(voltron.gobblerClaimable(mintedGobblerIds[0]));
     }
 
     /*//////////////////////////////////////////////////////////////

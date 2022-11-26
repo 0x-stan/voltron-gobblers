@@ -160,8 +160,10 @@ abstract contract ArtGobblersDeployHelper is DSTestPlus {
     }
 
     function prepareGoober(uint256 num, uint256 gooTokens) internal returns (uint256[] memory gobblerIds) {
-        gobblerIds = mintGobblers(MINTER, num);
-        setRandomnessAndReveal(num, "seed");
+        if (num > 0) {
+            gobblerIds = mintGobblers(MINTER, num);
+            setRandomnessAndReveal(num, "seed");
+        }
 
         vm.prank(address(gobblers));
         goo.mintForGobblers(MINTER, gooTokens);
