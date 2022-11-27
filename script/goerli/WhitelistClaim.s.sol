@@ -5,8 +5,8 @@ import "forge-std/Script.sol";
 import "forge-std/console.sol";
 
 import { MockArtGobblers } from "test/utils/mocks/MockArtGobblers.sol";
-import { ProofHelper } from "./utils/ProofHelper.sol";
-import { DeploymentHelper } from "./utils/DeploymentHelper.sol";
+import { ProofHelper } from "../utils/ProofHelper.sol";
+import { DeploymentHelper } from "../utils/DeploymentHelper.sol";
 
 contract WhitelistClaim is Script {
     MockArtGobblers gobblers;
